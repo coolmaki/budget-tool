@@ -1,0 +1,5 @@
+UPDATE "accounts"
+SET "name" = $name
+WHERE
+    "budget_id" = $budgetId
+    AND "id" = $id
