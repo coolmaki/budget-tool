@@ -19,7 +19,7 @@ const NavMenu: Component = () => {
     return (
         <nav
             class={clsx(
-                "z-30 absolute inset-0 flex flex-col p-4 gap-4 bg-base-100 shadow-lg transition-all duration-500",
+                "z-30 absolute inset-0 flex flex-col p-4 gap-4 bg-surface-100 shadow-lg transition-all duration-500",
                 isOpen() ? undefined : "opacity-0 -translate-x-full translate-y-1/6",
             )}>
             <div class="flex flex-row items-center justify-between">
@@ -37,7 +37,7 @@ const NavMenu: Component = () => {
                 {navItems.map((item) => (
                     <button
                         onclick={() => setRoot(item.component)}
-                        class="flex flex-row items-center gap-4 p-4 rounded-surface bg-base-200 hover:bg-base-300 transition-colors duration-200 text-base-content w-full text-left">
+                        class="flex flex-row items-center gap-4 p-4 rounded-surface bg-surface-200 hover:bg-surface-300 transition-colors duration-200 text-base-content w-full text-left">
                         <item.icon class="w-6 h-6" />
                         <span class="text-lg">{item.label}</span>
                     </button>

@@ -13,13 +13,18 @@ type Style =
     | "warning"
     | "error";
 
+type IconPosiiton =
+    | "leading"
+    | "trailing";
+
 type ButtonProps = {
     icon?: LucideIcon;
+    iconPosition?: IconPosiiton;
     text?: string;
     size?: Size;
     style?: Style;
     class?: string;
-    onclick?: () => void;
+    onclick?: (e: MouseEvent) => void;
 };
 
 function getSizeValue(size: Size): number {
@@ -65,11 +70,12 @@ export default function Button(props: ButtonProps): JSX.Element {
 
     return (
         <button
-            onclick={props.onclick}
+            onclick={(e) => props.onclick?.(e)}
             class={clsx(
-                "flex flex-row flex-nowrap items-center rounded-surface cursor-pointer shadow-md hover:opacity-90 hover:shadow-none transition-all",
+                "flex flex-nowrap items-center rounded-surface cursor-pointer shadow-md hover:opacity-90 hover:shadow-none transition-all",
                 style().sizeClasses,
                 style().styleClasses,
+                props.iconPosition == "trailing" ? "flex-row-reverse justify-between" : "flex-row",
                 props.class)}>
             <Show when={props.icon}>
                 {(result) => {

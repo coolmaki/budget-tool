@@ -1,9 +1,11 @@
 import { Logger, useLogging } from "@/app/logging";
 import { type Core } from "@/core";
+import { Period, PeriodType } from "@/core/types";
 import { delay } from "@/utils/promises";
 import CoreWorker from "@/workers/core-worker?worker";
 import { wrap } from "comlink";
 import { createContext, ParentComponent, useContext } from "solid-js";
+import { createStore, SetStoreFunction } from "solid-js/store";
 
 const defaultInitializationTimeout = 10000;
 
@@ -112,4 +114,34 @@ async function createWorker(timeout: number): Promise<Worker> {
             reject(event.error);
         }
     });
+}
+
+export type BudgetContext = {
+    id: string | null;
+    period: Period;
+};
+
+export type BudgetContextStore = [get: BudgetContext, set: SetStoreFunction<BudgetContext>];
+
+const BudgetContext = createContext<BudgetContextStore>();
+
+export const BudgetContextProvider: ParentComponent = (props) => {
+    const context = createStore<BudgetContext>({
+        id: null,
+        period: {
+            amount: 1,
+            type: PeriodType.MONTH,
+        },
+    });
+
+    return (
+        <BudgetContext.Provider value={context}>
+            {props.children}
+        </BudgetContext.Provider>
+    );
+};
+
+export function useBudgetContext(): BudgetContextStore {
+    const context = useContext(BudgetContext);
+    return context!;
 }

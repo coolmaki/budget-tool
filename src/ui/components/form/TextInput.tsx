@@ -1,11 +1,13 @@
+import { type InputState } from "@/ui/components/form";
 import clsx, { ClassValue } from "clsx";
 import { type LucideIcon } from "lucide-solid";
-import { createMemo, type JSX, Show } from "solid-js";
-import { type InputState } from ".";
+import { Component, createMemo, Show } from "solid-js";
 
 type TextInputProps = {
+    class?: string;
     placeholder?: string;
     value?: string;
+    disabled?: boolean
     leadingIcon?: LucideIcon;
     trailingIcon?: LucideIcon;
     onleading?: () => void;
@@ -16,7 +18,7 @@ type TextInputProps = {
 
 const empty = "";
 
-export function TextInput(props: TextInputProps): JSX.Element {
+const TextInput: Component<TextInputProps> = (props: TextInputProps) => {
     const stateClass = createMemo<ClassValue | undefined>(() => {
         switch (props.state) {
             case "valid":
@@ -29,15 +31,19 @@ export function TextInput(props: TextInputProps): JSX.Element {
     })
 
     return (
-        <div class="grid  items-center">
+        <div class={clsx(
+            "grid items-center min-w-0 grid-cols-1",
+            props.disabled ? "text-disabled-content" : "text-surface-content",
+            props.class)}>
             <input
                 placeholder={props.placeholder}
                 value={props.value ?? empty}
                 oninput={(e) => props.oninput?.(e.currentTarget.value)}
                 class={clsx(
-                    "col-start-1 col-end-1 row-start-1 row-end-1 shadow-md focus:shadow-xl rounded-field bg-neutral-200 py-2 h-10",
-                    props.leadingIcon ? "pl-10" : "pl-3",
-                    props.trailingIcon ? "pr-10" : "pr-3",
+                    "col-start-1 col-end-1 row-start-1 row-end-1 shadow-md focus:shadow-lg rounded-field py-2 h-field",
+                    props.disabled ? "bg-disabled" : "bg-surface-200",
+                    props.leadingIcon ? "pl-10" : "pl-4",
+                    props.trailingIcon ? "pr-10" : "pr-4",
                     stateClass(),
                 )} />
 
@@ -63,3 +69,5 @@ export function TextInput(props: TextInputProps): JSX.Element {
         </div>
     );
 }
+
+export default TextInput;

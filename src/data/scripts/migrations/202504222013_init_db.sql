@@ -15,6 +15,16 @@ CREATE TABLE "budgets" (
     "name" TEXT NOT NULL UNIQUE
 );
 
+CREATE TABLE "incomes" (
+    "budget_id" TEXT NOT NULL,
+    "id" TEXT PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "period_type" TEXT NOT NULL,
+    "period_amount" INTEGER NOT NULL,
+    "amount" REAL NOT NULL,
+    FOREIGN KEY ("budget_id") REFERENCES "budgets" ("id")
+);
+
 CREATE TABLE "categories" (
     "budget_id" TEXT NOT NULL,
     "id" TEXT PRIMARY KEY,
@@ -36,6 +46,8 @@ CREATE TABLE "expenses" (
     "name" TEXT NOT NULL,
     "category_id" TEXT NOT NULL,
     "account_id" TEXT NOT NULL,
+    "period_type" TEXT NOT NULL,
+    "period_amount" INTEGER NOT NULL,
     "amount" REAL NOT NULL,
     FOREIGN KEY ("budget_id") REFERENCES "budgets" ("id"),
     FOREIGN KEY ("category_id") REFERENCES "categories" ("id"),

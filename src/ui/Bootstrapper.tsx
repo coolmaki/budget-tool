@@ -1,19 +1,16 @@
 import { StackRenderer, useNavigation } from "@/app/navigation";
-import NavMenu from "@/ui/components/NavMenu";
-import { Component } from "solid-js";
+import Budgets from "@/ui/pages/Budgets";
+import { Component, onMount } from "solid-js";
 
 const Bootstrapper: Component = () => {
-    const { stack } = useNavigation();
+    const { stack, setRoot } = useNavigation();
 
-    // onMount(() => {
-    //     setRoot(Dashboard);
-    // });
+    onMount(() => {
+        setRoot(Budgets);
+    });
 
     return (
-        <>
-            <StackRenderer stack={stack} />
-            <NavMenu />
-        </>
+        <StackRenderer stack={stack} />
     );
 };
 

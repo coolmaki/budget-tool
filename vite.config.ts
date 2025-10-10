@@ -18,8 +18,29 @@ export default defineConfig({
         enabled: true,
       },
       manifest: {
-        name: "Training Tool",
-        description: "",
+        name: "Budget Tool",
+        short_name: "BudgetTool",
+        description: "A tool to help you manage your finances.",
+        display: "standalone",
+        start_url: "/",
+        icons: [
+          {
+            src: '/icons/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: '/icons/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          },
+          {
+            src: '/icons/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ],
       },
       strategies: "generateSW",
     }),

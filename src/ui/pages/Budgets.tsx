@@ -1,130 +1,231 @@
-import { useCore } from "@/app/core";
+import { useBudgetContext, useCore } from "@/app/core";
 import { useI18n } from "@/app/i18n";
 import { useLogging } from "@/app/logging";
-import { BudgetNameAlreadyUsedError } from "@/core/errors";
+import { useNavigation } from "@/app/navigation";
 import { Budget } from "@/core/models";
-import Button from "@/ui/components/Button";
-import { TextInput } from "@/ui/components/form/TextInput";
-import LoadingIndicator from "@/ui/components/LoadingIndicator";
-import Page from "@/ui/Page";
-import { FrownIcon, PlusIcon } from "lucide-solid";
-import { Component, createResource, createSignal, For, Match, Show, Suspense, Switch } from "solid-js";
-import { Portal } from "solid-js/web";
+import ConfirmDialog from "@/ui/components/dialogs/ConfirmDialog";
+import FormDialog from "@/ui/components/dialogs/FormDIalog";
+import TextInput from "@/ui/components/form/TextInput";
+import List from "@/ui/components/List";
+import ListHeader from "@/ui/components/ListHeader";
+import Manage from "@/ui/pages/Manage";
+import Settings from "@/ui/pages/Settings";
+import Page from "@/ui/templates/Page";
+import { FrownIcon, PenIcon, SettingsIcon, XIcon } from "lucide-solid";
+import { Component, createMemo, createSignal } from "solid-js";
+import { createStore, unwrap } from "solid-js/store";
+
+type BudgetStore = {
+    budgets: Budget[];
+    loading: boolean;
+}
+
+type EditBudgetStore = {
+    id: string | null;
+    name: string;
+    showDialog: boolean;
+    executing: boolean;
+};
+
+type DeleteBudgetStore = {
+    budget: Budget | null;
+    showDialog: boolean;
+    executing: boolean;
+};
 
 const Budgets: Component = () => {
     const { t } = useI18n();
     const core = useCore();
+    const { push } = useNavigation();
     const logger = useLogging();
+    const [_, setContext] = useBudgetContext();
 
-    const [budgetName, setBudgetName] = createSignal("");
-    const [isDialogOpen, setIsDialogOpen] = createSignal(false);
+    const [searchValue, setSearchValue] = createSignal("");
 
-    const [budgets, { refetch }] = createResource(fetchBudgets);
+    const [budgetStore, setBudgetStore] = createStore<BudgetStore>({
+        budgets: [],
+        loading: false,
+    });
 
-    async function fetchBudgets(): Promise<Budget[]> {
-        const budgets = await core.getBudgets();
-        return budgets;
+    const [editBudgetStore, setEditBudgetStore] = createStore<EditBudgetStore>({
+        id: null,
+        name: "",
+        showDialog: false,
+        executing: false,
+    });
+
+    const [deleteBudgetStore, setDeleteBudgetStore] = createStore<DeleteBudgetStore>({
+        budget: null,
+        showDialog: false,
+        executing: false,
+    });
+
+    const isLoading = createMemo(() =>
+        budgetStore.loading ||
+        editBudgetStore.executing ||
+        deleteBudgetStore.executing);
+
+    async function onAppearing(): Promise<void> {
+        await loadBudgets(searchValue());
     }
 
-    async function createBudget(name: string): Promise<void> {
+    async function loadBudgets(search: string): Promise<void> {
+        setBudgetStore("loading", true);
+
         await core
-            .createBudget({ name })
-            .then(async () => {
-                await refetch();
-            })
+            .getBudgets({ search })
+            .then((budgets) => setBudgetStore("budgets", budgets))
+            .finally(() => {
+                setBudgetStore("loading", false);
+            });
+    }
+
+    function showEditDialog(e: MouseEvent, budget?: Budget): void {
+        e.stopPropagation();
+
+        setEditBudgetStore({
+            id: budget?.id ?? null,
+            name: budget?.name ?? "",
+            showDialog: true,
+            executing: false,
+        });
+    }
+
+    function saveBudget(): Promise<void> {
+        return editBudgetStore.id
+            ? editBudget()
+            : createBudget();
+    }
+
+    function createBudget(): Promise<void> {
+        setEditBudgetStore("showDialog", false);
+        return handleAction(() => core.createBudget({ name: editBudgetStore.name }));
+    }
+
+    function editBudget(): Promise<void> {
+        setEditBudgetStore("showDialog", false);
+
+        const budget: Budget = {
+            id: editBudgetStore.id!,
+            name: editBudgetStore.name,
+        };
+
+        return handleAction(() => core.updateBudget({ budget }));
+    }
+
+    function confirmDeleteBudget(e: MouseEvent, budget: Budget): void {
+        e.stopPropagation();
+
+        setDeleteBudgetStore({
+            budget: budget,
+            showDialog: true,
+        });
+    }
+
+    function deleteBudget(): Promise<void> {
+        setDeleteBudgetStore("showDialog", false);
+        return handleAction(() => core.deleteBudget({ budget: unwrap(deleteBudgetStore.budget)! }));
+    }
+
+    async function handleAction(action: () => Promise<void>): Promise<void> {
+        await action()
+            .then(() => loadBudgets(searchValue()))
             .catch(error => {
                 // TODO: handle error
-                if (error instanceof BudgetNameAlreadyUsedError) {
-                    const message = t("SettingsPage.Errors.BudgetNameAlreadyUsed", error.name);
-                    logger.warn(message);
-                    return;
-                }
-
                 const message = t("Global.Errors.Unhandled");
                 logger.error(message, error);
-            })
-            .finally(() => setIsDialogOpen(false));
+            });
     }
+
+    function selectBudget(id: string): Promise<void> {
+        setContext("id", id);
+        return push(Manage);
+    }
+
+    const BudgetTemplate: Component<{ item: Budget }> = (props) => {
+        return (
+            <div
+                class="bg-surface-200 flex flex-row items-center rounded-surface shadow-sm gap-xs border border-border min-h-[5.4rem] h-[5.4rem] pl-md pr-sm"
+                onclick={async () => await selectBudget(props.item.id)}>
+                <p class="text-lg flex-1 text-surface-content">{props.item.name}</p>
+
+                <button
+                    type="button"
+                    class="button-icon-field shrink-0 bg-info text-error-content"
+                    onclick={(e) => showEditDialog(e, props.item)}>
+                    <PenIcon size={20} class="mx-auto" />
+                </button>
+
+                <button
+                    type="button"
+                    class="button-icon-field shrink-0 bg-error text-error-content rounded-none"
+                    onclick={(e) => confirmDeleteBudget(e, props.item)}>
+                    <XIcon size={20} class="mx-auto" />
+                </button>
+            </div>
+        );
+    };
 
     return (
         <Page
-            isRoot={true}
-            title={t("BudgetsPage.Title")}>
+            title={t("AppName")!}
+            trailingIcon={SettingsIcon}
+            trailingAction={async () => await push(Settings)}
+            onappearing={onAppearing}>
+
+            <ListHeader
+                searchPlaceholder={t("BudgetsPage.SearchBudget")}
+                onsearch={async (value) => {
+                    setSearchValue(value);
+                    await loadBudgets(value);
+                }}
+                onadd={(e) => showEditDialog(e)} />
+
+            <hr class="text-border" />
 
             {/* Content */}
             <main
-                class="flex-1 flex flex-col px-4 gap-4"
-                classList={{
-                    "justify-center":
-                        budgets.loading ||
-                        budgets.error,
-                }}>
-                <Suspense fallback={<LoadingIndicator />}>
-                    <Switch>
-
-                        {/* Error */}
-                        <Match when={budgets.error}>
-                            <div>Error: {budgets.error}</div>
-                        </Match>
-
-                        {/* No Result */}
-                        <Match when={budgets()?.length === 0}>
-                            <div class="bg-base-300 text-base-content rounded-md h-24 items-center flex flex-row gap-2 justify-center">
-                                <p class="text-center text-xl">{t("BudgetsPage.YouHaveNoBudgets")}</p>
-                                <FrownIcon />
-                            </div>
-                        </Match>
-
-                        {/* Budget Cards */}
-                        <Match when={budgets()?.length}>
-                            <For each={budgets()}>
-                                {(budget) => (
-                                    <div class="rounded-md shadow-sm border border-primary h-24 px-4 py-2">
-                                        <p>{budget.name}</p>
-                                    </div>
-                                )}
-                            </For>
-                        </Match>
-                    </Switch>
-                </Suspense>
+                class="flex-1 flex flex-col min-h-0 p-sm gap-sm overflow-y-auto"
+                classList={{ "justify-center": isLoading() }}>
+                <List
+                    loading={isLoading()}
+                    items={budgetStore.budgets}
+                    itemTemplate={BudgetTemplate}
+                    emptyTemplate={EmptyTemplate} />
             </main>
 
-            {/* Create New Budget */}
-            <div class="shrink-0 p-4">
-                <Button
-                    class="w-full text-center"
-                    size="lg"
-                    icon={PlusIcon}
-                    text={t("BudgetsPage.NewBudget")}
-                    onclick={() => {
-                        setBudgetName("");
-                        setIsDialogOpen(true);
-                    }} />
-            </div>
-
             {/* Create New Budget Dialog */}
-            <Show when={isDialogOpen()}>
-                <Portal>
-                    <div
-                        class="flex flex-col justify-center items-center fixed top-0 left-0 h-screen w-screen before:absolute before:w-full before:h-full before:bg-black before:opacity-50"
-                        onclick={() => setIsDialogOpen(false)}>
-                        <div
-                            class="flex flex-col gap-4 rounded-md bg-base-100 z-10 p-4"
-                            onClick={(e) => { e.stopPropagation(); }}>
-                            <TextInput
-                                value=""
-                                placeholder="Budget Name"
-                                oninput={(value) => setBudgetName(value)} />
-                            <Button
-                                class="text-center"
-                                text="Save"
-                                onclick={async () => await createBudget(budgetName())} />
-                        </div>
-                    </div>
-                </Portal>
-            </Show>
+            <FormDialog
+                show={editBudgetStore.showDialog}
+                title={editBudgetStore.id ? t("BudgetsPage.EditBudget")! : t("BudgetsPage.AddNewBudget")!}
+                onsave={async () => await saveBudget()}
+                oncancel={() => setEditBudgetStore("showDialog", false)}>
+                <TextInput
+                    value={editBudgetStore.name}
+                    placeholder={t("BudgetsPage.BudgetNamePlaceholder")}
+                    oninput={(value) => setEditBudgetStore("name", value)} />
+            </FormDialog>
+
+            {/* Confirm Delete Dialog */}
+            <ConfirmDialog
+                show={deleteBudgetStore.showDialog}
+                title={t("BudgetsPage.DeleteBudgetTitle")!}
+                message={t("BudgetsPage.DeleteBudgetMessage", deleteBudgetStore.budget?.name ?? "")!}
+                onconfirm={async () => await deleteBudget()}
+                oncancel={() => setDeleteBudgetStore("showDialog", false)} />
         </Page>
     );
 };
 
-export default Budgets; 
+export default Budgets;
+
+const EmptyTemplate: Component = () => {
+    const { t } = useI18n();
+
+    return (
+        <div class="bg-surface-200 text-surface-content rounded-surface h-24 items-center flex flex-row gap-sm justify-center">
+            <p class="text-center text-xl">{t("BudgetsPage.YouHaveNoBudgets")}</p>
+            <FrownIcon />
+        </div>
+    );
+};

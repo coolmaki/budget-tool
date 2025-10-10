@@ -5,15 +5,40 @@ import { createStore } from "solid-js/store";
 const animationDuration = 500;
 
 type Stack = {
-    current: number;
+    index: number;
+    animationIndex: number;
     value: Component[];
 };
+
+type PageContext = {
+    index: number;
+};
+
+const PageContext = createContext<PageContext>();
+
+type PageContextProviderProps = {
+    index: number;
+}
+
+const PageContextProvider: ParentComponent<PageContextProviderProps> = (props) => {
+    return (
+        <PageContext.Provider value={{ index: props.index }}>
+            {props.children}
+        </PageContext.Provider>
+    );
+};
+
+export function usePageContext(): PageContext {
+    const context = useContext(PageContext)!;
+    return context;
+}
 
 type NavigationContext = {
     stack: Stack;
     setRoot: (view: Component) => void;
-    push: (view: Component) => void;
-    pop: () => void;
+    push: (view: Component) => Promise<void>;
+    pop: () => Promise<void>;
+    popToRoot: () => Promise<void>;
     isOpen: Accessor<boolean>;
     setIsOpen: Setter<boolean>;
 };
@@ -22,7 +47,8 @@ const NavigationContext = createContext<NavigationContext>();
 
 export const NavigationContextProvider: ParentComponent = (props) => {
     const [stack, setStack] = createStore<Stack>({
-        current: -1,
+        index: -1,
+        animationIndex: -1,
         value: [],
     });
 
@@ -30,9 +56,13 @@ export const NavigationContextProvider: ParentComponent = (props) => {
 
     async function push(view: Component): Promise<void> {
         setIsOpen(false);
-        setStack("value", value => [...value, view]);
+        setStack((stack) => ({
+            animationIndex: stack.animationIndex,
+            index: stack.index + 1,
+            value: [...stack.value, view],
+        }));
         await delay();
-        setStack("current", current => current + 1);
+        setStack("animationIndex", animationIndex => animationIndex + 1);
         await delay(animationDuration);
     }
 
@@ -44,17 +74,31 @@ export const NavigationContextProvider: ParentComponent = (props) => {
 
         setIsOpen(false);
 
-        setStack("current", current => current - 1);
+        setStack((stack) => ({
+            animationIndex: stack.animationIndex - 1,
+            index: stack.index - 1,
+            value: stack.value,
+        }));
 
         await delay(animationDuration);
 
         setStack("value", value => value.slice(0, -1));
     }
 
+    async function popToRoot(): Promise<void> {
+        const popDelay = 100;
+
+        while (stack.index > 0) {
+            pop();
+            await delay(popDelay);
+        }
+    }
+
     function setRoot(view: Component): void {
         setIsOpen(false);
         setStack({
-            current: 0,
+            index: 0,
+            animationIndex: 0,
             value: [view],
         });
     }
@@ -64,6 +108,7 @@ export const NavigationContextProvider: ParentComponent = (props) => {
         setRoot,
         push,
         pop,
+        popToRoot,
         isOpen,
         setIsOpen,
     };
@@ -91,7 +136,7 @@ export const StackRenderer: Component<StackRendererProps> = (props) => {
                 {(View, i) => (
                     <ViewRenderer
                         viewIndex={i()}
-                        stackIndex={props.stack.current}>
+                        stackIndex={props.stack.animationIndex}>
                         <View />
                     </ViewRenderer>
                 )}
@@ -107,14 +152,16 @@ type ViewRendererProps = {
 
 const ViewRenderer: ParentComponent<ViewRendererProps> = (props) => {
     return (
-        <div
-            class="absolute inset-0 bg-base-200 transition-all duration-[500ms] ease-in-out"
-            classList={{
-                "-z-10 -translate-x-1/2 -translate-y-1/12 rounded-surface": props.viewIndex < props.stackIndex,
-                "z-0": props.viewIndex === props.stackIndex,
-                "z-10 translate-x-full -translate-y-1/12 rounded-surface": props.viewIndex > props.stackIndex,
-            }}>
-            {props.children}
-        </div >
+        <PageContextProvider index={props.viewIndex}>
+            <div
+                class="absolute inset-0 bg-surface-200 transition-all duration-[500ms] ease-in-out"
+                classList={{
+                    "-z-10 -translate-x-1/2 -translate-y-1/12 rounded-surface": props.viewIndex < props.stackIndex,
+                    "z-0": props.viewIndex === props.stackIndex,
+                    "z-10 translate-x-full -translate-y-1/12 rounded-surface": props.viewIndex > props.stackIndex,
+                }}>
+                {props.children}
+            </div >
+        </PageContextProvider>
     );
 };
