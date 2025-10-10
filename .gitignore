@@ -32,9 +32,3 @@ Thumbs.db
 
 # Optional: test coverage
 coverage/
-
-# Optional: package manager files
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-bun.lockb
