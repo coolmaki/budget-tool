@@ -148,6 +148,10 @@ const Manage: Component = () => {
     async function onAppearing(): Promise<void> {
         await loadData();
 
+        if (data.totalIncome <= 0) {
+            return;
+        }
+
         Chart.register([
             DoughnutController,
             ArcElement,

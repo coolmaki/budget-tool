@@ -5,6 +5,9 @@ import { VitePWA } from "vite-plugin-pwa";
 import solid from "vite-plugin-solid";
 
 export default defineConfig({
+  worker: {
+    format: "es",
+  },
   plugins: [
     solid(),
     tailwindcss(),

@@ -15,7 +15,7 @@ export const UpdatesContextProvider: ParentComponent = (props) => {
     const logger = useLogging();
 
     const {
-        offlineReady: [offlineReady, setOfflineReady],
+        offlineReady: [_, setOfflineReady],
         needRefresh: [needRefresh, setNeedRefresh],
         updateServiceWorker,
     } = useRegisterSW({

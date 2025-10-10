@@ -65,7 +65,7 @@ async function start(): Promise<void> {
 
     async function clearData(): Promise<void> {
         database?.close();
-        
+
         const directory = await navigator.storage.getDirectory();
         await directory.removeEntry(coreDataPath);
         await initializeDatabase();
@@ -99,8 +99,7 @@ async function start(): Promise<void> {
     expose(core);
 }
 
-await start()
-    .catch((error) => {
-        logger.error(error);
-        database?.close();
-    });
+start().catch((error) => {
+    logger.error(error);
+    database?.close();
+});
