@@ -6,26 +6,10 @@ import { LoadingContextProvider } from "@/app/loading";
 import { LoggingProvider } from "@/app/logging";
 import { NavigationContextProvider } from "@/app/navigation";
 import { ThemeContextProvider } from "@/app/themes";
+import { UpdatesContextProvider } from "@/app/updates";
 import "@/index.css";
 import Bootstrapper from "@/ui/Bootstrapper";
 import { render } from "solid-js/web";
-
-// ------------------------------------------------------------
-// Service Worker Config
-// ------------------------------------------------------------
-
-// https://vite-pwa-org.netlify.app/frameworks/solidjs
-import { useRegisterSW } from 'virtual:pwa-register/solid';
-
-const intervalMS = 60 * 60 * 1000
-
-const updateServiceWorker = useRegisterSW({
-    onRegistered(r) {
-        r && setInterval(() => {
-            r.update()
-        }, intervalMS)
-    }
-})
 
 // ------------------------------------------------------------
 // App Entry Point
@@ -33,6 +17,7 @@ const updateServiceWorker = useRegisterSW({
 
 const AppContext = new AppContextBuilder()
     .use(LoggingProvider)
+    .use(UpdatesContextProvider)
     .use(LoadingContextProvider)
     .use(I18nContextProvider)
     .use(ThemeContextProvider)

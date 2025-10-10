@@ -68,9 +68,17 @@ const dict = {
                     }
                 },
             },
+            Updates: {
+                Title: "Updates",
+                UpdateAvailable: "Update Available",
+                NoUpdateAvailable: "No Update Available",
+                UpdateError: "Update Error",
+            },
             Data: {
                 Title: "Data",
                 ClearData: "Clear Data",
+                ClearDataConfirmationTitle: "Clear Data",
+                ClearDataConfirmationMessage: "Are you sure you want to clear your data?",
             },
         },
     },

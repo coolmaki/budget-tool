@@ -1,0 +1,65 @@
+name: Build artifacts
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js and cache npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Workspace: $PWD"
+          npm ci --prefer-offline --no-audit --progress=false
+
+      - name: Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build --if-present
+
+      - name: Collect build outputs
+        id: collect
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAR_NAME=static-site-${{ github.sha }}.tar.gz
+          mkdir -p artifact
+          # Prefer dist/ (typical Node static output)
+          if [ -d "dist" ]; then
+            cp -r dist artifact/site || true
+          elif [ -d "build" ]; then
+            cp -r build artifact/site || true
+          else
+            echo "No dist/build directory found; including repo metadata as fallback"
+            cp -r README* LICENSE* package.json package-lock.json artifact/ || true
+          fi
+          tar -czf "$TAR_NAME" -C artifact .
+          echo "TAR_NAME=$TAR_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-site-${{ github.sha }}
+          path: ${{ steps.collect.outputs.TAR_NAME }}
