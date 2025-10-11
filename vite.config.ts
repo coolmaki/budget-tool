@@ -1,6 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import { defineConfig } from "vite";
+import ViteCompression from "vite-plugin-compression";
 import { VitePWA } from "vite-plugin-pwa";
 import solid from "vite-plugin-solid";
 
@@ -11,6 +12,9 @@ export default defineConfig({
   plugins: [
     solid(),
     tailwindcss(),
+    ViteCompression({
+      algorithm: "gzip",
+    }),
     VitePWA({
       registerType: "prompt",
       workbox: {

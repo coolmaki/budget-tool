@@ -20,7 +20,7 @@ const ConfirmDialog: Component<ConfirmDialogProps> = (props) => {
             <div class="w-screen p-4">
                 <div class="flex flex-col gap-sm bg-surface-100 rounded-surface p-sm">
                     <h1 class="text-xl text-surface-content">{props.title}</h1>
-                    <p class="text-md leading-5 text-surface-content">{props.message}</p>
+                    <p class="text-sm leading-5 text-surface-content whitespace-pre-line">{props.message}</p>
 
                     <div class="flex flex-row justify-end gap-sm">
                         {/* Cancel */}

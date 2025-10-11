@@ -40,7 +40,7 @@ export function getIncomes({ queryRepository }: CoreDependencies, query: GetInco
     return Promise.resolve(incomes);
 }
 
-export function GetTotalIncome({ queryRepository }: CoreDependencies, query: GetTotalIncomeQuery): Promise<number> {
+export function getTotalIncome({ queryRepository }: CoreDependencies, query: GetTotalIncomeQuery): Promise<number> {
     const total = queryRepository.totalIncome({ budgetId: query.budgetId });
 
     return Promise.resolve(total);

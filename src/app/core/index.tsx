@@ -28,7 +28,25 @@ export const CoreContextProvider: ParentComponent = (props) => {
                         throw new Error("Proxy not loaded :(");
                     }
 
-                    return func(...args);
+                    const result = func(...args);
+
+                    if (result instanceof Promise) {
+                        return result.then((res) => {
+                            // If we are disconnecting, clear the proxy so a new worker is created next time 
+                            if (prop === "disconnect") {
+                                coreWorkerWrapper.clearProxy();
+                            }
+
+                            return res;
+                        });
+                    }
+
+                    // If we are disconnecting, clear the proxy so a new worker is created next time 
+                    if (prop === "disconnect") {
+                        coreWorkerWrapper.clearProxy();
+                    }
+
+                    return result;
                 });
         },
     });
@@ -52,23 +70,27 @@ export type CoreWorkerWrapperConfig = {
 
 class CoreWorkerWrapper {
     private readonly config: CoreWorkerWrapperConfig;
-    private proxy: Core | null;
+    private proxy: ProxyResult | null;
 
     public constructor(config: CoreWorkerWrapperConfig) {
         this.config = config;
         this.proxy = null;
     }
 
-    private async createProxy(): Promise<Core> {
-        const proxy = await createProxy({
+    private async createProxy(): Promise<ProxyResult> {
+        const result = await createProxy({
             timeout: this.config.timeout,
             onerror: (error) => {
                 this.config.logger.error("CoreWorkerWrapper: Error in core worker", error);
                 this.proxy = null;
             }
-        });
+        })
+            .catch((err) => {
+                this.config.logger.error("CoreWorkerWrapper: Failed to create core worker proxy", err);
+                throw err;
+            });
 
-        return proxy;
+        return result;
     }
 
     public async getProxy(): Promise<Core> {
@@ -76,7 +98,12 @@ class CoreWorkerWrapper {
             this.proxy = await this.createProxy();
         }
 
-        return this.proxy;
+        return this.proxy.proxy;
+    }
+
+    public clearProxy(): void {
+        this.proxy?.worker.terminate();
+        this.proxy = null;
     }
 }
 
@@ -85,7 +112,12 @@ type ProxyConfig = {
     onerror: (error: any) => void;
 };
 
-async function createProxy(config: ProxyConfig): Promise<Core> {
+type ProxyResult = {
+    proxy: Core;
+    worker: Worker;
+};
+
+async function createProxy(config: ProxyConfig): Promise<ProxyResult> {
     const worker = await createWorker(config.timeout);
 
     worker.onerror = (event) => {
@@ -94,7 +126,10 @@ async function createProxy(config: ProxyConfig): Promise<Core> {
 
     await delay(100);
 
-    return wrap<Core>(worker);
+    return {
+        proxy: wrap<Core>(worker),
+        worker: worker,
+    };
 }
 
 async function createWorker(timeout: number): Promise<Worker> {

@@ -63,6 +63,12 @@ async function start(): Promise<void> {
     // Core
     // ------------------------------------------------------------
 
+    function disconnect(): Promise<void> {
+        database?.close();
+        database = undefined;
+        return Promise.resolve();
+    }
+
     async function clearData(): Promise<void> {
         database?.close();
 
@@ -76,13 +82,14 @@ async function start(): Promise<void> {
             return;
         }
 
-        await runMigrations(database!);
+        await runMigrations(database);
     }
 
     const core = createCore({
         logger,
         commandRepository: commandRepository,
         queryRepository: queryRepository,
+        disconnect: disconnect,
         clearData: clearData,
     });
 

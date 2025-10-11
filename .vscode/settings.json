@@ -35,4 +35,5 @@
         "--FIX-EVEN-UNPARSABLE"
     ],
     "sqlfluff.format.enabled": true,
+    "typescript.tsdk": "node_modules/typescript/lib",
 }
