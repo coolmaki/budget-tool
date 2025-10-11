@@ -56,6 +56,11 @@ const NumberInput: Component<NumberInputProps> = (props: NumberInputProps) => {
                 value={formattedValue()}
                 oninput={(e) => {
                     const value = parseFloat(e.target.value);
+
+                    if (isNaN(value)) {
+                        return;
+                    }
+
                     setValue(value);
                     props.oninput?.(value);
                 }}

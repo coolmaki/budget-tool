@@ -1,11 +1,13 @@
 import { useBudgetContext, useCore } from "@/app/core";
 import { useI18n } from "@/app/i18n";
 import { useNavigation } from "@/app/navigation";
-import { useTheme } from "@/app/themes";
+import { Theme, useTheme } from "@/app/themes";
 import { convertPeriod } from "@/core/helpers";
 import { Category } from "@/core/models";
-import { PeriodType } from "@/core/types";
+import { Period, PeriodType } from "@/core/types";
+import FormDialog from "@/ui/components/dialogs/FormDIalog";
 import InformationDialog from "@/ui/components/dialogs/InformationDialog";
+import Dropdown from "@/ui/components/form/Dropdown";
 import LoadingIndicator from "@/ui/components/LoadingIndicator";
 import PeriodPicker from "@/ui/components/PeriodPicker";
 import Accounts from "@/ui/pages/Accounts";
@@ -15,8 +17,8 @@ import Income from "@/ui/pages/Income";
 import Page from "@/ui/templates/Page";
 import { ArcElement, Chart, DoughnutController, type ChartConfiguration } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { CircleDollarSignIcon, FrownIcon, HandCoinsIcon, InfoIcon, LucideIcon, PiggyBankIcon, ShapesIcon, XIcon } from "lucide-solid";
-import { createMemo, createSignal, Match, Switch, type Component } from "solid-js";
+import { CircleDollarSignIcon, EyeIcon, FrownIcon, HandCoinsIcon, InfoIcon, LucideIcon, PiggyBankIcon, ShapesIcon, XIcon } from "lucide-solid";
+import { createEffect, createMemo, createSignal, Match, onCleanup, Switch, type Component } from "solid-js";
 import { createStore } from "solid-js/store";
 
 type DataStore = {
@@ -33,26 +35,75 @@ type ChartDataItem = {
     color: string;
 };
 
-type DataConfig = {
-    income: number;
-    label: string;
-    data: ChartDataItem[];
-    labelColor: string;
-    textColor: string;
-}
+function getChartConfig(data: {
+    income: number,
+    categories: Category[],
+    viewType: DataViewType,
+    period: Period,
+    theme: Theme,
+    currencyFormat: (amount: number) => string
+}): ChartConfiguration {
 
-function getChartConfig(config: DataConfig): ChartConfiguration {
+    function getValue(category: Category): number {
+        switch (data.viewType) {
+            case "dollar": return convertPeriod({
+                amount: category.total,
+                currentPeriod: { amount: 1, type: PeriodType.YEAR },
+                targetPeriod: data.period,
+            });
+            case "percentage": return Math.round((category.total / data.income) * 100);
+            default: throw new Error(`Invalid DataView Type "${data.viewType}"`);
+        }
+    }
+
+    function formatValue(value: any): string {
+        switch (data.viewType) {
+            case "dollar": return data.currencyFormat(Number(value))!;
+            case "percentage": return value + "%";
+            default: throw new Error(`Invalid DataView Type "${data.viewType}"`);
+        }
+    }
+
+    const chartData: ChartDataItem[] = data.categories
+        .filter((category) => category.total > 0)
+        .map((category) => ({
+            label: category.name,
+            value: getValue(category),
+            color: category.color
+        }));
+
+    const periodIncome = convertPeriod({
+        amount: data.income,
+        currentPeriod: { amount: 1, type: PeriodType.YEAR },
+        targetPeriod: data.period,
+    });
+
+    function getRemainingValue(): number {
+        switch (data.viewType) {
+            case "dollar": return periodIncome - chartData.reduce((total, current) => total + current.value, 0);
+            case "percentage": return 100 - chartData.reduce((total, current) => total + current.value, 0);
+            default: throw new Error(`Invalid DataView Type "${data.viewType}"`);
+        }
+    }
+
+    const remainingIncome: ChartDataItem = {
+        label: "Remaining",
+        value: getRemainingValue(),
+        color: data.theme === "dark" ? "#929292" : "#A0A0A0",
+    };
+
+    chartData.push(remainingIncome);
+
     return {
         type: "doughnut",
         data: {
-            labels: config.data.map((item) => item.label),
+            labels: chartData.map((item) => item.label),
             datasets: [
                 {
-                    label: config.label,
-                    data: config.data.map((data) => data.value),
-                    backgroundColor: config.data.map((data) => data.color),
+                    data: chartData.map((data) => data.value),
+                    backgroundColor: chartData.map((data) => data.color),
                     borderWidth: 0,
-                }
+                },
             ],
         },
         options: {
@@ -60,19 +111,26 @@ function getChartConfig(config: DataConfig): ChartConfiguration {
                 datalabels: {
                     anchor: "center",
                     align: "center",
-                    color: config.textColor,
-                    backgroundColor: config.labelColor,
+                    color: data.theme === "dark" ? "#000000" : "#FFFFFF",
+                    backgroundColor: data.theme === "dark" ? "#FFFFFF" : "#000000",
                     borderRadius: 4,
                     font: {
                         weight: "bold",
                         size: 12,
                     },
-                    formatter: (value, context) => config.data[context.dataIndex].label + " " + value + "%", // show raw value
+                    formatter: (value, context) => chartData[context.dataIndex].label + " " + formatValue(value),
                 },
             },
         },
         plugins: [ChartDataLabels],
     };
+}
+
+type DataViewType = "dollar" | "percentage";
+
+type ViewState = {
+    showViewOptions: boolean;
+    dataViewType: DataViewType;
 }
 
 const Manage: Component = () => {
@@ -83,6 +141,11 @@ const Manage: Component = () => {
     const [context, setContext] = useBudgetContext();
 
     const [showInfo, setShowInfo] = createSignal(false);
+
+    const [view, setView] = createStore<ViewState>({
+        showViewOptions: false,
+        dataViewType: "dollar",
+    });
 
     const [data, setData] = createStore<DataStore>({
         totalIncome: 0,
@@ -101,6 +164,15 @@ const Manage: Component = () => {
         amount: data.totalIncome,
         currentPeriod: { amount: 1, type: PeriodType.YEAR },
         targetPeriod: context.period,
+    }));
+
+    const [chartConfig, setChartConfig] = createSignal<ChartConfiguration>(getChartConfig({
+        income: data.totalIncome,
+        categories: data.categories,
+        viewType: view.dataViewType,
+        period: context.period,
+        currencyFormat: (_) => "",
+        theme: theme()
     }));
 
     async function loadData(): Promise<void> {
@@ -145,45 +217,42 @@ const Manage: Component = () => {
     let chartRef!: HTMLCanvasElement;
     let chart: Chart | null;
 
-    async function onAppearing(): Promise<void> {
-        await loadData();
+    createEffect(() => {
+        const debounce = 200;
+        const nextConfig = chartConfig();
+        const handler = setTimeout(() => createChart(nextConfig), debounce);
 
-        if (data.totalIncome <= 0) {
-            return;
-        }
+        // Clean up on next run
+        onCleanup(() => clearTimeout(handler));
+    });
 
+    function updateChartConfig(): void {
+        const config = getChartConfig({
+            income: data.totalIncome,
+            categories: data.categories,
+            viewType: view.dataViewType,
+            period: context.period,
+            currencyFormat: (amount) => t("Core.CurrencyFormat", amount)!,
+            theme: theme(),
+        });
+
+        setChartConfig(config);
+    }
+
+    function createChart(config: ChartConfiguration): void {
         Chart.register([
             DoughnutController,
             ArcElement,
             ChartDataLabels,
         ]);
 
-        const income = data.totalIncome;
-        const chartData: ChartDataItem[] = data.categories
-            .filter((category) => category.total > 0)
-            .map((category) => ({
-                label: category.name,
-                value: Math.round((category.total / income) * 100),
-                color: category.color
-            }));
-
-        const remainingIncome: ChartDataItem = {
-            label: "Remaining",
-            value: 100 - chartData.reduce((total, current) => total + current.value, 0),
-            color: theme() === "dark" ? "#929292" : "#A0A0A0",
-        };
-
-        chartData.push(remainingIncome);
-
-        const config = getChartConfig({
-            income: income,
-            label: "Test Chart",
-            data: chartData,
-            textColor: theme() === "dark" ? "#000000" : "#FFFFFF",
-            labelColor: theme() === "dark" ? "#FFFFFF" : "#000000",
-        });
-
+        chart?.destroy();
         chart = new Chart(chartRef, config);
+    }
+
+    async function onAppearing(): Promise<void> {
+        await loadData();
+        updateChartConfig();
     }
 
     function onDisappearing(): void {
@@ -214,14 +283,45 @@ const Manage: Component = () => {
             )}>
                 <Match when={!isLoading()}>
                     <>
-                        <div class="flex flex-col gap-sm p-sm">
-                            <span class="text-xl text-surface-content text-center">{t("ManagePage.ShowAmountsFor")}:</span>
+                        <span class="p-sm">
+                            <button
+                                type="button"
+                                class="w-full button button-leading-icon bg-primary text-primary-content justify-center"
+                                onclick={() => setView("showViewOptions", true)}>
+                                <EyeIcon size={20} />
+                                <span>{t("ManagePage.View")}</span>
+                            </button>
 
-                            <PeriodPicker
-                                value={context.period}
-                                onamountchanged={(amount) => setContext("period", { amount, type: context.period.type })}
-                                ontypechanged={(type) => setContext("period", { amount: context.period.amount, type })} />
-                        </div>
+                            <FormDialog
+                                show={view.showViewOptions}
+                                title={t("ManagePage.View")!}
+                                oncancel={() => setView("showViewOptions", false)}>
+
+                                <Dropdown
+                                    items={["dollar", "percentage"] as DataViewType[]}
+                                    title={t("ManagePage.ViewChartBy")!}
+                                    value={view.dataViewType}
+                                    getName={(value) => t("ManagePage.DataViewType", value!)!}
+                                    areEqual={(a, b) => a === b}
+                                    onselected={(value) => {
+                                        setView("dataViewType", value);
+                                        updateChartConfig();
+                                    }} />
+
+                                <span class="text-xl text-surface-content text-center">{t("ManagePage.ShowAmountsFor")}:</span>
+
+                                <PeriodPicker
+                                    value={context.period}
+                                    onamountchanged={(amount) => {
+                                        setContext("period", { amount, type: context.period.type });
+                                        updateChartConfig();
+                                    }}
+                                    ontypechanged={(type) => {
+                                        setContext("period", { amount: context.period.amount, type });
+                                        updateChartConfig();
+                                    }} />
+                            </FormDialog>
+                        </span>
 
                         <hr class="text-border" />
 
@@ -234,7 +334,7 @@ const Manage: Component = () => {
                             )}>
                                 <Match when={data.totalIncome > 0}>
                                     <canvas ref={chartRef}></canvas>
-                                    <span class="absolute top-1/2 left-1/2 text-2xl text-black bg-white py-xs px-sm rounded-sm -translate-x-1/2 translate-y-1/2">{t("Core.CurrencyFormat", totalIncome())}</span>
+                                    <span class="absolute top-1/2 left-1/2 text-2xl text-black bg-white py-xs px-sm rounded-sm -translate-x-1/2">{t("Core.CurrencyFormat", totalIncome())}</span>
                                 </Match>
                             </Switch>
                         </div>

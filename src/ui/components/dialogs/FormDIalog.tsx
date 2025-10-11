@@ -1,11 +1,11 @@
 import Dialog from "@/ui/components/Dialog";
 import { CheckIcon, XIcon } from "lucide-solid";
-import { ParentComponent } from "solid-js";
+import { ParentComponent, Show } from "solid-js";
 
 type FormDialogProps = {
     show?: boolean;
     title: string;
-    onsave: () => void;
+    onsave?: () => void;
     oncancel?: () => void;
 };
 
@@ -24,11 +24,14 @@ const FormDialog: ParentComponent<FormDialogProps> = (props) => {
                             onclick={() => props.oncancel?.()}>
                             <XIcon />
                         </button>
-                        <button
-                            class="shrink-0 button-icon-field bg-neutral text-neutral-content"
-                            onclick={props.onsave}>
-                            <CheckIcon />
-                        </button>
+
+                        <Show when={props.onsave}>
+                            <button
+                                class="shrink-0 button-icon-field bg-neutral text-neutral-content"
+                                onclick={props.onsave}>
+                                <CheckIcon />
+                            </button>
+                        </Show>
                     </div>
 
                     <hr class="text-border"></hr>

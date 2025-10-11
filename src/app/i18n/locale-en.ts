@@ -89,6 +89,15 @@ const dict = {
     ManagePage: {
         Title: "Manage",
         Information: "TODO: Put some information about the Manage page here...",
+        View: "View",
+        ViewChartBy: "View chart by:",
+        DataViewType: (type: string) => {
+            switch (type) {
+                case "dollar": return "Dollar";
+                case "percentage": return "Percentage";
+                default: return "Unknown";
+            }
+        },
         ShowAmountsFor: "Show amounts for",
         YouHaveNoIncome: "You have no incomes",
     },
