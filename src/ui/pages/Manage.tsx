@@ -159,11 +159,13 @@ const Manage: Component = () => {
         ]);
 
         const income = data.totalIncome;
-        const chartData: ChartDataItem[] = data.categories.map((category) => ({
-            label: category.name,
-            value: Math.round((category.total / income) * 100),
-            color: category.color
-        }));
+        const chartData: ChartDataItem[] = data.categories
+            .filter((category) => category.total > 0)
+            .map((category) => ({
+                label: category.name,
+                value: Math.round((category.total / income) * 100),
+                color: category.color
+            }));
 
         const remainingIncome: ChartDataItem = {
             label: "Remaining",

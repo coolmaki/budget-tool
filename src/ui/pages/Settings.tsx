@@ -45,19 +45,19 @@ const Settings: Component = () => {
             ],
         });
 
-        // TODO: validate file
+        await loadWhile(async () => {
+            // TODO: validate file
+            await core.disconnect(); // Ensure worker thread is not holding on to file
+            const root = await navigator.storage.getDirectory();
+            const fileHandle = await root.getFileHandle("core.db", { create: true });
 
-        await core.disconnect(); // Ensure worker thread is not holding on to file
-        const root = await navigator.storage.getDirectory();
-        const fileHandle = await root.getFileHandle("core.db", { create: true });
-        const writeable = await fileHandle.createWritable();
-        writeable.write(await handle.getFile());
-        await writeable.close();
+            const writeable = await fileHandle.createWritable();
+            writeable.write(await handle.getFile());
+            await writeable.close();
+        });
     }
 
     async function exportData(): Promise<void> {
-        await core.disconnect(); // Ensure worker thread is not holding on to file
-
         const saveHandle = await window.showSaveFilePicker({
             suggestedName: "budget-tool-data.db",
             types: [
@@ -68,15 +68,20 @@ const Settings: Component = () => {
             ],
         });
 
-        const root = await navigator.storage.getDirectory();
-        const fileHandle = await root.getFileHandle("core.db");
+        await loadWhile(async () => {
+            await core.disconnect(); // Ensure worker thread is not holding on to file
+            const root = await navigator.storage.getDirectory();
+            const fileHandle = await root.getFileHandle("core.db");
 
-        const writeable = await saveHandle.createWritable();
-        writeable.write(await fileHandle.getFile());
-        await writeable.close();
+            const writeable = await saveHandle.createWritable();
+            writeable.write(await fileHandle.getFile());
+            await writeable.close();
+        });
+
     }
 
     function clearData(): Promise<void> {
+        setState("showClearDataConfirmation", false);
         return loadWhile(async () => await core.clearData());
     }
 
