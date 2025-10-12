@@ -14,15 +14,17 @@ import TextInput from "@/ui/components/form/TextInput";
 import List from "@/ui/components/List";
 import ListHeader from "@/ui/components/ListHeader";
 import PeriodPicker from "@/ui/components/PeriodPicker";
+import { AccountNotSetError, BudgetNotSetError, CategoryNotSetError } from "@/ui/errors";
 import Page from "@/ui/templates/Page";
 import { ChevronLeft, DollarSignIcon, FrownIcon, InfoIcon, PenIcon, XIcon } from "lucide-solid";
-import { createMemo, createSignal, type Component } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, untrack, type Component } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 
 type ExpenseFilter = {
     search?: string;
-    categoryId?: string;
-    accountId?: string;
+    category?: Category;
+    account?: Account;
+    showDialog: boolean;
 };
 
 type ExpensesStore = {
@@ -46,8 +48,8 @@ type EditExpenseStore = {
     periodType: PeriodType;
     periodAmount: number;
     amount: number;
-    categoryId: string;
-    accountId: string;
+    categoryId?: string;
+    accountId?: string;
     showDialog: boolean;
     executing: boolean;
 };
@@ -67,7 +69,24 @@ const Expenses: Component = () => {
 
     const [showInfo, setShowInfo] = createSignal(false);
 
-    const [filter, setFilter] = createStore<ExpenseFilter>({});
+    const [filter, setFilter] = createStore<ExpenseFilter>({ showDialog: false });
+
+    createEffect(() => {
+        const debounce = 200;
+        const search = untrack(() => filter.search);
+        const category = filter.category;
+        const account = filter.account;
+
+        const handler = setTimeout(() => loadExpenses({
+            search,
+            category,
+            account,
+            showDialog: false,
+        }), debounce);
+
+        // Clean up on next run
+        onCleanup(() => clearTimeout(handler));
+    });
 
     const [expensesStore, setExpensesStore] = createStore<ExpensesStore>({
         expenses: [],
@@ -92,18 +111,14 @@ const Expenses: Component = () => {
         }))
         .reduce((total, amount) => total + amount, 0));
 
-    const selectedCategory = createMemo(() => categoriesStore.categories.find((category) => category.id === editExpenseStore.categoryId));
-
-    const selectedAccount = createMemo(() => accountsStore.accounts.find((account) => account.id === editExpenseStore.accountId));
-
     const [editExpenseStore, setEditExpenseStore] = createStore<EditExpenseStore>({
         id: null,
         name: "",
         periodType: PeriodType.WEEK,
         periodAmount: 1,
         amount: 0,
-        categoryId: "",
-        accountId: "",
+        categoryId: undefined,
+        accountId: undefined,
         showDialog: false,
         executing: false,
     });
@@ -113,6 +128,10 @@ const Expenses: Component = () => {
         showDialog: false,
         executing: false,
     });
+
+    const selectedCategory = createMemo(() => categoriesStore.categories.find((category) => category.id === editExpenseStore.categoryId));
+
+    const selectedAccount = createMemo(() => accountsStore.accounts.find((account) => account.id === editExpenseStore.accountId));
 
     const isLoading = createMemo(() =>
         expensesStore.loading ||
@@ -129,13 +148,26 @@ const Expenses: Component = () => {
         ]);
     }
 
-    async function loadExpenses(filter: ExpenseFilter): Promise<void> {
+    function assertBudgetIdSet(): string {
         const budgetId = context.id;
+        if (!budgetId) { throw new BudgetNotSetError(); }
+        return budgetId;
+    }
 
-        if (!budgetId) {
-            // TODO: handle budget id not set
-            return;
-        }
+    function assertCategoryIdSet(): string {
+        const categoryId = editExpenseStore.categoryId;
+        if (!categoryId) { throw new CategoryNotSetError(); }
+        return categoryId;
+    }
+
+    function assertAccountIdSet(): string {
+        const accountId = editExpenseStore.accountId;
+        if (!accountId) { throw new AccountNotSetError(); }
+        return accountId;
+    }
+
+    async function loadExpenses(filter: ExpenseFilter): Promise<void> {
+        const budgetId = assertBudgetIdSet();
 
         setExpensesStore("loading", true);
 
@@ -143,8 +175,8 @@ const Expenses: Component = () => {
             .getExpenses({
                 budgetId: budgetId,
                 search: filter.search,
-                categoryId: filter.categoryId,
-                accountId: filter.accountId,
+                categoryId: filter.category?.id,
+                accountId: filter.account?.id,
             })
             .then((expenses) => setExpensesStore("expenses", expenses))
             .finally(() => {
@@ -153,12 +185,7 @@ const Expenses: Component = () => {
     }
 
     async function loadCategories(): Promise<void> {
-        const budgetId = context.id;
-
-        if (!budgetId) {
-            // TODO: handle budget id not set
-            return;
-        }
+        const budgetId = assertBudgetIdSet();
 
         setCategoriesStore("loading", true);
 
@@ -171,12 +198,7 @@ const Expenses: Component = () => {
     }
 
     async function loadAccounts(): Promise<void> {
-        const budgetId = context.id;
-
-        if (!budgetId) {
-            // TODO: handle budget id not set
-            return;
-        }
+        const budgetId = assertBudgetIdSet();
 
         setAccountsStore("loading", true);
 
@@ -197,8 +219,8 @@ const Expenses: Component = () => {
             periodType: expense?.period.type ?? PeriodType.WEEK,
             periodAmount: expense?.period.amount ?? 1,
             amount: expense?.amount ?? 0,
-            categoryId: expense?.category.id ?? "",
-            accountId: expense?.account.id ?? "",
+            categoryId: expense?.category.id,
+            accountId: expense?.account.id,
             showDialog: true,
             executing: false,
         });
@@ -211,12 +233,9 @@ const Expenses: Component = () => {
     }
 
     function createExpense(): Promise<void> {
-        const budgetId = context.id;
-
-        if (!budgetId) {
-            // TODO: handle budget id not set
-            return Promise.resolve();
-        }
+        const budgetId = assertBudgetIdSet();
+        const categoryId = assertCategoryIdSet();
+        const accountId = assertAccountIdSet();
 
         setEditExpenseStore("showDialog", false);
         return handleAction(() => core.createExpense({
@@ -227,18 +246,15 @@ const Expenses: Component = () => {
                 amount: editExpenseStore.periodAmount,
             },
             amount: editExpenseStore.amount,
-            categoryId: editExpenseStore.categoryId,
-            accountId: editExpenseStore.accountId,
+            categoryId: categoryId,
+            accountId: accountId,
         }));
     }
 
     function editExpense(): Promise<void> {
-        const budgetId = context.id;
-
-        if (!budgetId) {
-            // TODO: handle budget id not set
-            return Promise.resolve();
-        }
+        const budgetId = assertBudgetIdSet();
+        const categoryId = assertCategoryIdSet();
+        const accountId = assertAccountIdSet();
 
         setEditExpenseStore("showDialog", false);
 
@@ -251,8 +267,8 @@ const Expenses: Component = () => {
                 amount: editExpenseStore.periodAmount,
             },
             amount: editExpenseStore.amount,
-            categoryId: editExpenseStore.categoryId,
-            accountId: editExpenseStore.accountId,
+            categoryId: categoryId,
+            accountId: accountId,
         }));
     }
 
@@ -297,8 +313,8 @@ const Expenses: Component = () => {
 
                 {/* Row 1 */}
                 <div class="flex flex-row items-center gap-xs min-h-[5.4rem] h-[5.4rem] pl-md pr-sm">
-                    <div class="flex-1">
-                        <p class="text-lg text-surface-content">{props.item.name}</p>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-lg text-surface-content truncate">{props.item.name}</p>
                         <span class="text-sm text-medium-emphasis">{props.item.category.name}</span>
                     </div>
 
@@ -350,7 +366,7 @@ const Expenses: Component = () => {
 
             <ListHeader
                 searchPlaceholder={t("ExpensesPage.SearchExpenses")}
-                onfilter={() => { }}
+                onfilter={() => setFilter("showDialog", true)}
                 onsearch={async (value) => {
                     setFilter("search", value);
                     await loadExpenses(filter);
@@ -376,6 +392,30 @@ const Expenses: Component = () => {
                 <span class="text-2xl text-surface-content">{t("Core.Total")}</span>
                 <span class="text-3xl text-primary">{t("Core.CurrencyFormat", total())}</span>
             </span>
+
+            {/* Filter Dialog */}
+            <FormDialog
+                show={filter.showDialog}
+                title={t("ExpensesPage.Filter")!}
+                oncancel={() => setFilter("showDialog", false)}>
+                {/* Category */}
+                <Dropdown
+                    items={[undefined, ...categoriesStore.categories]}
+                    title={t("ExpensesPage.SelectCategory")}
+                    value={filter.category}
+                    getName={(value) => value?.name ?? "-"}
+                    areEqual={(a, b) => a?.id === b?.id}
+                    onselected={(value) => setFilter("category", value)} />
+
+                {/* Account */}
+                <Dropdown
+                    items={[undefined, ...accountsStore.accounts]}
+                    title={t("ExpensesPage.SelectAccount")}
+                    value={filter.account}
+                    getName={(value) => value?.name ?? "-"}
+                    areEqual={(a, b) => a?.id === b?.id}
+                    onselected={(value) => setFilter("account", value)} />
+            </FormDialog>
 
             {/* Create New Expense Dialog */}
             <FormDialog

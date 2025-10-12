@@ -147,6 +147,7 @@ const dict = {
             "Use the filter button to filter your expenses by account, and/or category.",
         SearchExpenses: "Search expenses",
         ExpenseNamePlaceholder: "Expense Name",
+        Filter: "Filter",
         AddNewExpense: "Add new expense",
         EditExpense: "Edit expense",
         YouHaveNoExpenses: "You have no expenses",
