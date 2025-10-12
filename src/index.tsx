@@ -9,6 +9,7 @@ import { ThemeContextProvider } from "@/app/themes";
 import { UpdatesContextProvider } from "@/app/updates";
 import "@/index.css";
 import Bootstrapper from "@/ui/Bootstrapper";
+import { ExpenseEditorContextProvider } from "@/ui/contexts/ExpenseEditorContext";
 import { render } from "solid-js/web";
 
 // ------------------------------------------------------------
@@ -24,6 +25,7 @@ const AppContext = new AppContextBuilder()
     .use(NavigationContextProvider)
     .use(CoreContextProvider)
     .use(BudgetContextProvider)
+    .use(ExpenseEditorContextProvider)
     .build();
 
 const loadingPlaceholder = document.getElementById("loading-placeholder")!;
