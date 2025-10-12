@@ -88,7 +88,10 @@ const dict = {
     },
     ManagePage: {
         Title: "Manage",
-        Information: "TODO: Put some information about the Manage page here...",
+        Information:
+            "Manage your budget and view the summary from this page.\n\n" +
+            "Use the 'View' button to adjust how you want to view your data.\n\n" +
+            "Use the buttons in the bar at the bottom of this page to manage various areas of your budget.",
         View: "View",
         ViewChartBy: "View chart by:",
         DataViewType: (type: string) => {
@@ -103,7 +106,7 @@ const dict = {
     },
     IncomePage: {
         Title: "Income",
-        Information: "TODO: Put some information about the Income page here...",
+        Information: "Manage your incomes on this page.",
         SearchIncomes: "Search income",
         IncomeNamePlaceholder: "Income Name",
         AddNewIncome: "Add new income",
@@ -114,7 +117,10 @@ const dict = {
     },
     AccountsPage: {
         Title: "Accounts",
-        Information: "TODO: Put some information about the Accounts page here...",
+        Information:
+            "Sometimes your expense categort is not a direct 1:1 with your bank accounts.\n\n" +
+            "i.e. You may have a category called 'Savings' but multiple accounts that you put money into for savings.\n\n" +
+            "Your accounts are the place from which the expenses are paid from.",
         SearchAccounts: "Search accounts",
         AccountNamePlaceholder: "Account Name",
         AddNewAccount: "Add new account",
@@ -125,7 +131,7 @@ const dict = {
     },
     CategoriesPage: {
         Title: "Categories",
-        Information: "TODO: Put some information about the Categories page here...",
+        Information: "Manage your expense categories on this page.",
         SearchCategories: "Search categories",
         CategoryNamePlaceholder: "Category Name",
         AddNewCategory: "Add new category",
@@ -136,7 +142,9 @@ const dict = {
     },
     ExpensesPage: {
         Title: "Expenses",
-        Information: "TODO: Put some information about the Expenses page here...",
+        Information:
+            "Manage your expenses on this page.\n\n" +
+            "Use the filter button to filter your expenses by account, and/or category.",
         SearchExpenses: "Search expenses",
         ExpenseNamePlaceholder: "Expense Name",
         AddNewExpense: "Add new expense",

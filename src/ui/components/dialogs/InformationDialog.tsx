@@ -1,6 +1,6 @@
-import { Component } from "solid-js";
 import Dialog from "@/ui/components/Dialog";
 import { InfoIcon, XIcon } from "lucide-solid";
+import { Component } from "solid-js";
 
 type InformationDialogProps = {
     show?: boolean;
@@ -26,7 +26,7 @@ const InformationDialog: Component<InformationDialogProps> = (props) => {
                             <XIcon />
                         </button>
                     </h1>
-                    <p class="text-md leading-5 text-surface-content">{props.text}</p>
+                    <p class="text-md leading-5 text-surface-content whitespace-pre-line">{props.text}</p>
                 </div>
             </div>
         </Dialog>
