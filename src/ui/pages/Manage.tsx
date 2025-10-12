@@ -10,6 +10,7 @@ import InformationDialog from "@/ui/components/dialogs/InformationDialog";
 import Dropdown from "@/ui/components/form/Dropdown";
 import LoadingIndicator from "@/ui/components/LoadingIndicator";
 import PeriodPicker from "@/ui/components/PeriodPicker";
+import { useExpenseFilter } from "@/ui/contexts/ExpenseFilterContext";
 import Accounts from "@/ui/pages/Accounts";
 import Categories from "@/ui/pages/Categories";
 import Expenses from "@/ui/pages/Expenses";
@@ -139,6 +140,7 @@ const Manage: Component = () => {
     const { theme } = useTheme();
     const core = useCore();
     const [context, setContext] = useBudgetContext();
+    const [_, setFilter] = useExpenseFilter();
 
     const [showInfo, setShowInfo] = createSignal(false);
 
@@ -357,7 +359,14 @@ const Manage: Component = () => {
                             <ConfigItem
                                 icon={CircleDollarSignIcon}
                                 title={t("ExpensesPage.Title")!}
-                                onclick={async () => await push(Expenses)} />
+                                onclick={async () => {
+                                    setFilter({
+                                        search: undefined,
+                                        category: undefined,
+                                        account: undefined,
+                                    });
+                                    await push(Expenses);
+                                }} />
                         </nav>
                     </>
                 </Match>

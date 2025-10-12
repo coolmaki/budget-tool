@@ -10,6 +10,7 @@ import { UpdatesContextProvider } from "@/app/updates";
 import "@/index.css";
 import Bootstrapper from "@/ui/Bootstrapper";
 import { ExpenseEditorContextProvider } from "@/ui/contexts/ExpenseEditorContext";
+import { ExpenseFilterContextProvider } from "@/ui/contexts/ExpenseFilterContext";
 import { render } from "solid-js/web";
 
 // ------------------------------------------------------------
@@ -25,6 +26,7 @@ const AppContext = new AppContextBuilder()
     .use(NavigationContextProvider)
     .use(CoreContextProvider)
     .use(BudgetContextProvider)
+    .use(ExpenseFilterContextProvider)
     .use(ExpenseEditorContextProvider)
     .build();
 

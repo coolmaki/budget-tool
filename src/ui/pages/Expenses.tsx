@@ -10,20 +10,14 @@ import Dropdown from "@/ui/components/form/Dropdown";
 import List from "@/ui/components/List";
 import ListHeader from "@/ui/components/ListHeader";
 import { useExpenseEditor } from "@/ui/contexts/ExpenseEditorContext";
+import { useExpenseFilter, type ExpenseFilter } from "@/ui/contexts/ExpenseFilterContext";
 import { BudgetNotSetError } from "@/ui/errors";
 import Page from "@/ui/templates/Page";
 import { ChevronLeft, FrownIcon, InfoIcon, PenIcon, XIcon } from "lucide-solid";
 import { createMemo, createSignal, type Component } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 
-type ExpenseFilter = {
-    search?: string;
-    category?: Category;
-    account?: Account;
-};
-
 type ExpenseFilterStore = {
-    value: ExpenseFilter;
     categories: (Category | undefined)[];
     accounts: (Account | undefined)[];
     showDialog: boolean;
@@ -54,8 +48,9 @@ const Expenses: Component = () => {
 
     const [showInfo, setShowInfo] = createSignal(false);
 
-    const [filter, setFilter] = createStore<ExpenseFilterStore>({
-        value: {},
+    const [filter, setFilter] = useExpenseFilter();
+
+    const [filterStore, setFilterStore] = createStore<ExpenseFilterStore>({
         categories: [],
         accounts: [],
         showDialog: false,
@@ -91,7 +86,7 @@ const Expenses: Component = () => {
 
     async function onAppearing(): Promise<void> {
         await Promise.all([
-            loadExpenses(filter.value),
+            loadExpenses(filter),
             loadCategories(),
             loadAccounts(),
         ]);
@@ -129,7 +124,7 @@ const Expenses: Component = () => {
         await core
             .getCategories({ budgetId: budgetId, search: "" })
             .then((categories) => {
-                setFilter("categories", [undefined, ...categories]);
+                setFilterStore("categories", [undefined, ...categories]);
                 setCategoriesStore("categories", categories);
             })
             .finally(() => {
@@ -145,7 +140,7 @@ const Expenses: Component = () => {
         await core
             .getAccounts({ budgetId: budgetId, search: "" })
             .then((accounts) => {
-                setFilter("accounts", [undefined, ...accounts]);
+                setFilterStore("accounts", [undefined, ...accounts]);
                 setAccountsStore("accounts", accounts);
             })
             .finally(() => {
@@ -153,35 +148,27 @@ const Expenses: Component = () => {
             });
     }
 
-    function filterCategory(category: Category | undefined): Promise<void> {
-        setFilter({
-            ...filter,
-            value: {
-                ...filter.value,
-                category: category,
-            },
-            showDialog: false,
-        });
+    function filterSearch(search: string | undefined): Promise<void> {
+        setFilter("search", search);
+        setFilterStore("showDialog", false);
+        return loadExpenses(filter);
+    }
 
-        return loadExpenses(filter.value);
+    function filterCategory(category: Category | undefined): Promise<void> {
+        setFilter("category", category);
+        setFilterStore("showDialog", false);
+        return loadExpenses(filter);
     }
 
     function filterAccount(account: Account | undefined): Promise<void> {
-        setFilter({
-            ...filter,
-            value: {
-                ...filter.value,
-                account: account,
-            },
-            showDialog: false,
-        });
-
-        return loadExpenses(filter.value);
+        setFilter("account", account);
+        setFilterStore("showDialog", false);
+        return loadExpenses(filter);
     }
 
     async function handleAction(action: () => Promise<void>): Promise<void> {
         await action()
-            .then(() => loadExpenses(filter.value))
+            .then(() => loadExpenses(filter))
             .catch(error => {
                 // TODO: handle error
                 const message = t("Global.Errors.Unhandled");
@@ -261,14 +248,8 @@ const Expenses: Component = () => {
 
             <ListHeader
                 searchPlaceholder={t("ExpensesPage.SearchExpenses")}
-                onfilter={() => setFilter("showDialog", true)}
-                onsearch={async (value) => {
-                    setFilter("value", {
-                        ...filter.value,
-                        search: value,
-                    });
-                    await loadExpenses(filter.value);
-                }}
+                onfilter={() => setFilterStore("showDialog", true)}
+                onsearch={filterSearch}
                 onadd={async (e) => {
                     e.stopPropagation();
                     await handleAction(() => createExpense({
@@ -299,23 +280,23 @@ const Expenses: Component = () => {
 
             {/* Filter Dialog */}
             <FormDialog
-                show={filter.showDialog}
+                show={filterStore.showDialog}
                 title={t("ExpensesPage.Filter")!}
-                oncancel={() => setFilter("showDialog", false)}>
+                oncancel={() => setFilterStore("showDialog", false)}>
                 {/* Category */}
                 <Dropdown
-                    items={unwrap(filter.categories)}
+                    items={unwrap(filterStore.categories)}
                     title={t("ExpensesPage.SelectCategory")}
-                    value={filter.value.category}
+                    value={filter.category}
                     getName={(value) => value?.name ?? "-"}
                     areEqual={(a, b) => a?.id === b?.id}
                     onselected={filterCategory} />
 
                 {/* Account */}
                 <Dropdown
-                    items={unwrap(filter.accounts)}
+                    items={unwrap(filterStore.accounts)}
                     title={t("ExpensesPage.SelectAccount")}
-                    value={filter.value.account}
+                    value={filter.account}
                     getName={(value) => value?.name ?? "-"}
                     areEqual={(a, b) => a?.id === b?.id}
                     onselected={filterAccount} />

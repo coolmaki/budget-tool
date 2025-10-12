@@ -3,7 +3,7 @@ import { useI18n } from "@/app/i18n";
 import { useLogging } from "@/app/logging";
 import { useNavigation } from "@/app/navigation";
 import { convertPeriod } from "@/core/helpers";
-import type { Category } from "@/core/models";
+import type { Category, Expense } from "@/core/models";
 import { PeriodType } from "@/core/types";
 import ConfirmDialog from "@/ui/components/dialogs/ConfirmDialog";
 import FormDialog from "@/ui/components/dialogs/FormDIalog";
@@ -12,6 +12,9 @@ import ColorPicker from "@/ui/components/form/ColorPicker";
 import TextInput from "@/ui/components/form/TextInput";
 import List from "@/ui/components/List";
 import ListHeader from "@/ui/components/ListHeader";
+import { useExpenseFilter } from "@/ui/contexts/ExpenseFilterContext";
+import { BudgetNotSetError } from "@/ui/errors";
+import Expenses from "@/ui/pages/Expenses";
 import Page from "@/ui/templates/Page";
 import { ChevronLeft, FrownIcon, InfoIcon, PenIcon, XIcon } from "lucide-solid";
 import { createMemo, createSignal, type Component } from "solid-js";
@@ -19,6 +22,7 @@ import { createStore, unwrap } from "solid-js/store";
 
 type CategoriesStore = {
     categories: Category[];
+    selectedCategoryExpenses: Expense[] | null;
     loading: boolean;
 }
 
@@ -39,9 +43,10 @@ type DeleteCategoryStore = {
 const Categories: Component = () => {
     const { t } = useI18n();
     const core = useCore();
-    const { pop } = useNavigation();
+    const { pop, push } = useNavigation();
     const logger = useLogging();
-    const [context, _] = useBudgetContext();
+    const [context,] = useBudgetContext();
+    const [, setFilter] = useExpenseFilter();
 
     const [showInfo, setShowInfo] = createSignal(false);
 
@@ -49,6 +54,7 @@ const Categories: Component = () => {
 
     const [categoryStore, setCategoryStore] = createStore<CategoriesStore>({
         categories: [],
+        selectedCategoryExpenses: null,
         loading: false,
     });
 
@@ -70,17 +76,18 @@ const Categories: Component = () => {
         editCategoryStore.executing ||
         deleteCategoryStore.executing);
 
+    function assertBudgetIdSet(): string {
+        const budgetId = context.id;
+        if (!budgetId) { throw new BudgetNotSetError(); }
+        return budgetId;
+    }
+
     async function onAppearing(): Promise<void> {
         await loadCategories(searchValue());
     }
 
     async function loadCategories(search: string): Promise<void> {
-        const budgetId = context.id;
-
-        if (!budgetId) {
-            // TODO: handle budget id not set
-            return;
-        }
+        const budgetId = assertBudgetIdSet();
 
         setCategoryStore("loading", true);
 
@@ -114,12 +121,7 @@ const Categories: Component = () => {
     }
 
     function createCategory(): Promise<void> {
-        const budgetId = context.id;
-
-        if (!budgetId) {
-            // TODO: handle budget id not set
-            return Promise.resolve();
-        }
+        const budgetId = assertBudgetIdSet();
 
         setEditCategoryStore("showDialog", false);
         return handleAction(() => core.createCategory({
@@ -130,12 +132,7 @@ const Categories: Component = () => {
     }
 
     function editCategory(): Promise<void> {
-        const budgetId = context.id;
-
-        if (!budgetId) {
-            // TODO: handle budget id not set
-            return Promise.resolve();
-        }
+        const budgetId = assertBudgetIdSet();
 
         setEditCategoryStore("showDialog", false);
 
@@ -157,18 +154,18 @@ const Categories: Component = () => {
     }
 
     function deleteCategory(): Promise<void> {
-        const budgetId = context.id;
-
-        if (!budgetId) {
-            // TODO: handle budget id not set
-            return Promise.resolve();
-        }
+        const budgetId = assertBudgetIdSet();
 
         setDeleteCategoryStore("showDialog", false);
         return handleAction(() => core.deleteCategory({
             budgetId: budgetId,
             id: unwrap(deleteCategoryStore.category!.id),
         }));
+    }
+
+    function selectCategory(category: Category): Promise<void> {
+        setFilter({ category: unwrap(category) });
+        return push(Expenses);
     }
 
     async function handleAction(action: () => Promise<void>): Promise<void> {
@@ -184,7 +181,8 @@ const Categories: Component = () => {
     const CategoryTemplate: Component<{ item: Category }> = (props) => {
         return (
             <div
-                class="flex-col bg-surface-200 rounded-surface shadow-sm gap-xs border border-border pb-sm">
+                class="flex-col bg-surface-200 rounded-surface shadow-sm gap-xs border border-border pb-sm"
+                onclick={async () => await selectCategory(props.item)}>
 
                 {/* Row 1 */}
                 <div class="flex flex-row items-center gap-xs min-h-[5.4rem] h-[5.4rem] pl-md pr-sm">

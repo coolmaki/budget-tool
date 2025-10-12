@@ -11,6 +11,8 @@ import InformationDialog from "@/ui/components/dialogs/InformationDialog";
 import TextInput from "@/ui/components/form/TextInput";
 import List from "@/ui/components/List";
 import ListHeader from "@/ui/components/ListHeader";
+import { useExpenseFilter } from "@/ui/contexts/ExpenseFilterContext";
+import Expenses from "@/ui/pages/Expenses";
 import Page from "@/ui/templates/Page";
 import { ChevronLeft, FrownIcon, InfoIcon, PenIcon, XIcon } from "lucide-solid";
 import { createMemo, createSignal, type Component } from "solid-js";
@@ -37,9 +39,10 @@ type DeleteAccountStore = {
 const Accounts: Component = () => {
     const { t } = useI18n();
     const core = useCore();
-    const { pop } = useNavigation();
+    const { pop, push } = useNavigation();
     const logger = useLogging();
-    const [context, _] = useBudgetContext();
+    const [context,] = useBudgetContext();
+    const [, setFilter] = useExpenseFilter();
 
     const [showInfo, setShowInfo] = createSignal(false);
 
@@ -166,6 +169,11 @@ const Accounts: Component = () => {
         }));
     }
 
+    function selectAccount(account: Account): Promise<void> {
+        setFilter({ account: unwrap(account) });
+        return push(Expenses);
+    }
+
     async function handleAction(action: () => Promise<void>): Promise<void> {
         await action()
             .then(() => loadAccounts(searchValue()))
@@ -179,7 +187,8 @@ const Accounts: Component = () => {
     const AccountTemplate: Component<{ item: Account }> = (props) => {
         return (
             <div
-                class="flex-col bg-surface-200 rounded-surface shadow-sm gap-xs border border-border pb-sm">
+                class="flex-col bg-surface-200 rounded-surface shadow-sm gap-xs border border-border pb-sm"
+                onclick={async () => await selectAccount(props.item)}>
 
                 {/* Row 1 */}
                 <div class="flex flex-row items-center gap-xs min-h-[5.4rem] h-[5.4rem] pl-md pr-sm">
