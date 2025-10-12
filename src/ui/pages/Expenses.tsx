@@ -17,13 +17,19 @@ import PeriodPicker from "@/ui/components/PeriodPicker";
 import { AccountNotSetError, BudgetNotSetError, CategoryNotSetError } from "@/ui/errors";
 import Page from "@/ui/templates/Page";
 import { ChevronLeft, DollarSignIcon, FrownIcon, InfoIcon, PenIcon, XIcon } from "lucide-solid";
-import { createEffect, createMemo, createSignal, onCleanup, untrack, type Component } from "solid-js";
+import { createMemo, createSignal, type Component } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 
 type ExpenseFilter = {
     search?: string;
     category?: Category;
     account?: Account;
+};
+
+type ExpenseFilterStore = {
+    value: ExpenseFilter;
+    categories: (Category | undefined)[];
+    accounts: (Account | undefined)[];
     showDialog: boolean;
 };
 
@@ -69,23 +75,11 @@ const Expenses: Component = () => {
 
     const [showInfo, setShowInfo] = createSignal(false);
 
-    const [filter, setFilter] = createStore<ExpenseFilter>({ showDialog: false });
-
-    createEffect(() => {
-        const debounce = 200;
-        const search = untrack(() => filter.search);
-        const category = filter.category;
-        const account = filter.account;
-
-        const handler = setTimeout(() => loadExpenses({
-            search,
-            category,
-            account,
-            showDialog: false,
-        }), debounce);
-
-        // Clean up on next run
-        onCleanup(() => clearTimeout(handler));
+    const [filter, setFilter] = createStore<ExpenseFilterStore>({
+        value: {},
+        categories: [],
+        accounts: [],
+        showDialog: false,
     });
 
     const [expensesStore, setExpensesStore] = createStore<ExpensesStore>({
@@ -102,14 +96,6 @@ const Expenses: Component = () => {
         accounts: [],
         loading: false,
     });
-
-    const total = createMemo(() => expensesStore.expenses
-        .map((expense) => convertPeriod({
-            amount: expense.amount,
-            currentPeriod: expense.period,
-            targetPeriod: context.period,
-        }))
-        .reduce((total, amount) => total + amount, 0));
 
     const [editExpenseStore, setEditExpenseStore] = createStore<EditExpenseStore>({
         id: null,
@@ -129,6 +115,14 @@ const Expenses: Component = () => {
         executing: false,
     });
 
+    const total = createMemo(() => expensesStore.expenses
+        .map((expense) => convertPeriod({
+            amount: expense.amount,
+            currentPeriod: expense.period,
+            targetPeriod: context.period,
+        }))
+        .reduce((total, amount) => total + amount, 0));
+
     const selectedCategory = createMemo(() => categoriesStore.categories.find((category) => category.id === editExpenseStore.categoryId));
 
     const selectedAccount = createMemo(() => accountsStore.accounts.find((account) => account.id === editExpenseStore.accountId));
@@ -142,7 +136,7 @@ const Expenses: Component = () => {
 
     async function onAppearing(): Promise<void> {
         await Promise.all([
-            loadExpenses(filter),
+            loadExpenses(filter.value),
             loadCategories(),
             loadAccounts(),
         ]);
@@ -191,7 +185,10 @@ const Expenses: Component = () => {
 
         await core
             .getCategories({ budgetId: budgetId, search: "" })
-            .then((categories) => setCategoriesStore("categories", categories))
+            .then((categories) => {
+                setFilter("categories", [undefined, ...categories]);
+                setCategoriesStore("categories", categories);
+            })
             .finally(() => {
                 setCategoriesStore("loading", false);
             });
@@ -204,10 +201,39 @@ const Expenses: Component = () => {
 
         await core
             .getAccounts({ budgetId: budgetId, search: "" })
-            .then((accounts) => setAccountsStore("accounts", accounts))
+            .then((accounts) => {
+                setFilter("accounts", [undefined, ...accounts]);
+                setAccountsStore("accounts", accounts);
+            })
             .finally(() => {
                 setAccountsStore("loading", false);
             });
+    }
+
+    function filterCategory(category: Category | undefined): Promise<void> {
+        setFilter({
+            ...filter,
+            value: {
+                ...filter.value,
+                category: category,
+            },
+            showDialog: false,
+        });
+
+        return loadExpenses(filter.value);
+    }
+
+    function filterAccount(account: Account | undefined): Promise<void> {
+        setFilter({
+            ...filter,
+            value: {
+                ...filter.value,
+                account: account,
+            },
+            showDialog: false,
+        });
+
+        return loadExpenses(filter.value);
     }
 
     function showEditDialog(e: MouseEvent, expense?: Expense): void {
@@ -298,7 +324,7 @@ const Expenses: Component = () => {
 
     async function handleAction(action: () => Promise<void>): Promise<void> {
         await action()
-            .then(() => loadExpenses(filter))
+            .then(() => loadExpenses(filter.value))
             .catch(error => {
                 // TODO: handle error
                 const message = t("Global.Errors.Unhandled");
@@ -368,8 +394,11 @@ const Expenses: Component = () => {
                 searchPlaceholder={t("ExpensesPage.SearchExpenses")}
                 onfilter={() => setFilter("showDialog", true)}
                 onsearch={async (value) => {
-                    setFilter("search", value);
-                    await loadExpenses(filter);
+                    setFilter("value", {
+                        ...filter.value,
+                        search: value,
+                    });
+                    await loadExpenses(filter.value);
                 }}
                 onadd={(e) => showEditDialog(e)} />
 
@@ -400,21 +429,21 @@ const Expenses: Component = () => {
                 oncancel={() => setFilter("showDialog", false)}>
                 {/* Category */}
                 <Dropdown
-                    items={[undefined, ...categoriesStore.categories]}
+                    items={unwrap(filter.categories)}
                     title={t("ExpensesPage.SelectCategory")}
-                    value={filter.category}
+                    value={filter.value.category}
                     getName={(value) => value?.name ?? "-"}
                     areEqual={(a, b) => a?.id === b?.id}
-                    onselected={(value) => setFilter("category", value)} />
+                    onselected={filterCategory} />
 
                 {/* Account */}
                 <Dropdown
-                    items={[undefined, ...accountsStore.accounts]}
+                    items={unwrap(filter.accounts)}
                     title={t("ExpensesPage.SelectAccount")}
-                    value={filter.account}
+                    value={filter.value.account}
                     getName={(value) => value?.name ?? "-"}
                     areEqual={(a, b) => a?.id === b?.id}
-                    onselected={(value) => setFilter("account", value)} />
+                    onselected={filterAccount} />
             </FormDialog>
 
             {/* Create New Expense Dialog */}
