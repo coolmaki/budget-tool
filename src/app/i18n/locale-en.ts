@@ -1,5 +1,5 @@
 import type { Theme } from "@/app/themes";
-import { Period, PeriodType } from "@/core/types";
+import type { Period, PeriodType } from "@/core/types";
 
 function periodTypeText({ periodType, plural }: { periodType: PeriodType, plural: boolean }): string {
     switch (periodType) {
@@ -39,6 +39,9 @@ const dict = {
             Cancel: "Cancel",
             Confirm: "Confirm",
         },
+        Ok: {
+            Ok: "Ok",
+        }
     },
     Errors: {
         BudgetNameAlreadyUsed: (name: string) => `The budget name ${name} has already been used.`,
@@ -128,6 +131,8 @@ const dict = {
         YouHaveNoAccounts: "You have no accounts",
         DeleteAccountTitle: "Delete Account",
         DeleteAccountMessage: (accountName: string) => `Are you sure you want to delete "${accountName}"?`,
+        AccountHasAssociatedExpensesErrorTitle: "Cannot Delete Account",
+        AccountHasAssociatedExpensesErrorMessage: "You cannot delete this account because there are expenses associated with it. Please delete or reassign those expenses first.",
     },
     CategoriesPage: {
         Title: "Categories",
@@ -139,6 +144,8 @@ const dict = {
         YouHaveNoCategories: "You have no categories",
         DeleteCategoryTitle: "Delete Category",
         DeleteCategoryMessage: (categoryName: string) => `Are you sure you want to delete "${categoryName}"?`,
+        CategoryHasAssociatedExpensesErrorTitle: "Cannot Delete Category",
+        CategoryHasAssociatedExpensesErrorMessage: "You cannot delete this category because there are expenses associated with it. Please delete or reassign those expenses first.",
     },
     ExpensesPage: {
         Title: "Expenses",

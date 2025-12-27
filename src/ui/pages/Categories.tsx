@@ -6,8 +6,9 @@ import { convertPeriod } from "@/core/helpers";
 import type { Category, Expense } from "@/core/models";
 import { PeriodType } from "@/core/types";
 import ConfirmDialog from "@/ui/components/dialogs/ConfirmDialog";
-import FormDialog from "@/ui/components/dialogs/FormDIalog";
+import FormDialog from "@/ui/components/dialogs/FormDialog";
 import InformationDialog from "@/ui/components/dialogs/InformationDialog";
+import OkDialog from "@/ui/components/dialogs/OkDialog";
 import ColorPicker from "@/ui/components/form/ColorPicker";
 import TextInput from "@/ui/components/form/TextInput";
 import List from "@/ui/components/List";
@@ -37,6 +38,7 @@ type EditCategoryStore = {
 type DeleteCategoryStore = {
     category: Category | null;
     showDialog: boolean;
+    showAssociatedExpensesDialog: boolean;
     executing: boolean;
 };
 
@@ -68,6 +70,7 @@ const Categories: Component = () => {
     const [deleteCategoryStore, setDeleteCategoryStore] = createStore<DeleteCategoryStore>({
         category: null,
         showDialog: false,
+        showAssociatedExpensesDialog: false,
         executing: false,
     });
 
@@ -144,12 +147,28 @@ const Categories: Component = () => {
         }));
     }
 
-    function confirmDeleteCategory(e: MouseEvent, category: Category): void {
+    async function confirmDeleteCategory(e: MouseEvent, category: Category): Promise<void> {
         e.stopPropagation();
 
-        setDeleteCategoryStore({
-            category: category,
-            showDialog: true,
+        const budgetId = context.id;
+
+        if (!budgetId) {
+            // TODO: handle budget id not set
+            return;
+        }
+
+        const expenses = await core.getExpenses({
+            budgetId: budgetId,
+            categoryId: category.id,
+        });
+
+        requestAnimationFrame(() => {
+            if (expenses.length > 0) {
+                setDeleteCategoryStore("showAssociatedExpensesDialog", true);
+            }
+            else {
+                setDeleteCategoryStore({ category: category, showDialog: true });
+            }
         });
     }
 
@@ -164,7 +183,11 @@ const Categories: Component = () => {
     }
 
     function selectCategory(category: Category): Promise<void> {
-        setFilter({ category: unwrap(category) });
+        setFilter({
+            search: undefined,
+            category: unwrap(category),
+            account: undefined,
+        });
         return push(Expenses);
     }
 
@@ -172,7 +195,6 @@ const Categories: Component = () => {
         await action()
             .then(() => loadCategories(searchValue()))
             .catch(error => {
-                // TODO: handle error
                 const message = t("Global.Errors.Unhandled");
                 logger.error(message, error);
             });
@@ -282,6 +304,13 @@ const Categories: Component = () => {
                 message={t("CategoriesPage.DeleteCategoryMessage", deleteCategoryStore.category?.name ?? "")!}
                 onconfirm={async () => await deleteCategory()}
                 oncancel={() => setDeleteCategoryStore("showDialog", false)} />
+
+            {/* Associated Expenses Dialog */}
+            <OkDialog
+                show={deleteCategoryStore.showAssociatedExpensesDialog}
+                title={t("CategoriesPage.CategoryHasAssociatedExpensesErrorTitle")!}
+                message={t("CategoriesPage.CategoryHasAssociatedExpensesErrorMessage")!}
+                ondismiss={() => setDeleteCategoryStore("showAssociatedExpensesDialog", false)} />
         </Page>
     );
 };

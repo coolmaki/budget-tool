@@ -1,6 +1,6 @@
 import { type CoreDependencies } from "@/core";
 import { Category } from "@/core/entities/category";
-import { CategoryNotFound } from "@/core/errors";
+import { CategoryHasAssociatedExpensesError, CategoryNotFound } from "@/core/errors";
 import * as Models from "@/core/models";
 import { generateId } from "@/utils/id";
 
@@ -82,6 +82,18 @@ export function deleteCategory({ commandRepository, queryRepository }: CoreDepen
         });
 
         return Promise.reject(error);
+    }
+
+    const expenses = queryRepository.getExpenses({
+        budgetId: command.budgetId,
+        categoryId: command.id,
+    });
+
+    if (expenses.length > 0) {
+        throw new CategoryHasAssociatedExpensesError({
+            budgetId: command.budgetId,
+            categoryId: command.id,
+        });
     }
 
     commandRepository.deleteCategory(entity);

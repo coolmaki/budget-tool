@@ -6,8 +6,9 @@ import { convertPeriod } from "@/core/helpers";
 import type { Account } from "@/core/models";
 import { PeriodType } from "@/core/types";
 import ConfirmDialog from "@/ui/components/dialogs/ConfirmDialog";
-import FormDialog from "@/ui/components/dialogs/FormDIalog";
+import FormDialog from "@/ui/components/dialogs/FormDialog";
 import InformationDialog from "@/ui/components/dialogs/InformationDialog";
+import OkDialog from "@/ui/components/dialogs/OkDialog";
 import TextInput from "@/ui/components/form/TextInput";
 import List from "@/ui/components/List";
 import ListHeader from "@/ui/components/ListHeader";
@@ -33,6 +34,7 @@ type EditAccountStore = {
 type DeleteAccountStore = {
     account: Account | null;
     showDialog: boolean;
+    showAssociatedExpensesDialog: boolean;
     executing: boolean;
 };
 
@@ -63,6 +65,7 @@ const Accounts: Component = () => {
     const [deleteAccountStore, setDeleteAccountStore] = createStore<DeleteAccountStore>({
         account: null,
         showDialog: false,
+        showAssociatedExpensesDialog: false,
         executing: false,
     });
 
@@ -145,12 +148,28 @@ const Accounts: Component = () => {
         }));
     }
 
-    function confirmDeleteAccount(e: MouseEvent, account: Account): void {
+    async function confirmDeleteAccount(e: MouseEvent, account: Account): Promise<void> {
         e.stopPropagation();
 
-        setDeleteAccountStore({
-            account: account,
-            showDialog: true,
+        const budgetId = context.id;
+
+        if (!budgetId) {
+            // TODO: handle budget id not set
+            return;
+        }
+
+        const expenses = await core.getExpenses({
+            budgetId: budgetId,
+            accountId: account.id,
+        });
+
+        requestAnimationFrame(() => {
+            if (expenses.length > 0) {
+                setDeleteAccountStore("showAssociatedExpensesDialog", true);
+            }
+            else {
+                setDeleteAccountStore({ account: account, showDialog: true });
+            }
         });
     }
 
@@ -170,7 +189,11 @@ const Accounts: Component = () => {
     }
 
     function selectAccount(account: Account): Promise<void> {
-        setFilter({ account: unwrap(account) });
+        setFilter({
+            search: undefined,
+            category: undefined,
+            account: unwrap(account)
+        });
         return push(Expenses);
     }
 
@@ -178,7 +201,6 @@ const Accounts: Component = () => {
         await action()
             .then(() => loadAccounts(searchValue()))
             .catch(error => {
-                // TODO: handle error
                 const message = t("Global.Errors.Unhandled");
                 logger.error(message, error);
             });
@@ -282,6 +304,13 @@ const Accounts: Component = () => {
                 message={t("AccountsPage.DeleteAccountMessage", deleteAccountStore.account?.name ?? "")!}
                 onconfirm={async () => await deleteAccount()}
                 oncancel={() => setDeleteAccountStore("showDialog", false)} />
+
+            {/* Associated Expenses Dialog */}
+            <OkDialog
+                show={deleteAccountStore.showAssociatedExpensesDialog}
+                title={t("AccountsPage.AccountHasAssociatedExpensesErrorTitle")!}
+                message={t("AccountsPage.AccountHasAssociatedExpensesErrorMessage")!}
+                ondismiss={() => setDeleteAccountStore("showAssociatedExpensesDialog", false)} />
         </Page>
     );
 };

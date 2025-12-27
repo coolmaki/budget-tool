@@ -3,7 +3,7 @@ import { useI18n } from "@/app/i18n";
 import type { Account, Category, Expense } from "@/core/models";
 import { PeriodType } from "@/core/types";
 import ConfirmDialog from "@/ui/components/dialogs/ConfirmDialog";
-import FormDialog from "@/ui/components/dialogs/FormDIalog";
+import FormDialog from "@/ui/components/dialogs/FormDialog";
 import Dropdown from "@/ui/components/form/Dropdown";
 import NumberInput from "@/ui/components/form/NumberInput";
 import TextInput from "@/ui/components/form/TextInput";

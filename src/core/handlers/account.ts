@@ -1,6 +1,6 @@
 import { type CoreDependencies } from "@/core";
 import { Account } from "@/core/entities/account";
-import { AccountNotFound } from "@/core/errors";
+import { AccountHasAssociatedExpensesError, AccountNotFound } from "@/core/errors";
 import * as Models from "@/core/models";
 import { generateId } from "@/utils/id";
 
@@ -78,6 +78,18 @@ export function deleteAccount({ commandRepository, queryRepository }: CoreDepend
         });
 
         return Promise.reject(error);
+    }
+
+    const expenses = queryRepository.getExpenses({
+        budgetId: command.budgetId,
+        accountId: command.id,
+    });
+
+    if (expenses.length > 0) {
+        throw new AccountHasAssociatedExpensesError({
+            budgetId: command.budgetId,
+            accountId: command.id,
+        });
     }
 
     commandRepository.deleteAccount(entity);

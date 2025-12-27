@@ -4,7 +4,7 @@ import { useLogging } from "@/app/logging";
 import { useNavigation } from "@/app/navigation";
 import { convertPeriod } from "@/core/helpers";
 import type { Account, Category, Expense } from "@/core/models";
-import FormDialog from "@/ui/components/dialogs/FormDIalog";
+import FormDialog from "@/ui/components/dialogs/FormDialog";
 import InformationDialog from "@/ui/components/dialogs/InformationDialog";
 import Dropdown from "@/ui/components/form/Dropdown";
 import List from "@/ui/components/List";

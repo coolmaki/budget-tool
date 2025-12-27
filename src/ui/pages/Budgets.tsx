@@ -4,7 +4,7 @@ import { useLogging } from "@/app/logging";
 import { useNavigation } from "@/app/navigation";
 import { Budget } from "@/core/models";
 import ConfirmDialog from "@/ui/components/dialogs/ConfirmDialog";
-import FormDialog from "@/ui/components/dialogs/FormDIalog";
+import FormDialog from "@/ui/components/dialogs/FormDialog";
 import TextInput from "@/ui/components/form/TextInput";
 import List from "@/ui/components/List";
 import ListHeader from "@/ui/components/ListHeader";

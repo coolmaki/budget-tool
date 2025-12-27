@@ -53,3 +53,25 @@ export class ExpenseNotFound extends Error {
         this.id = id;
     }
 }
+
+export class CategoryHasAssociatedExpensesError extends Error {
+    public readonly budgetId: string;
+    public readonly categoryId: string;
+
+    public constructor({ budgetId, categoryId }: { budgetId: string, categoryId: string }) {
+        super();
+        this.budgetId = budgetId;
+        this.categoryId = categoryId;
+    }
+}
+
+export class AccountHasAssociatedExpensesError extends Error {
+    public readonly budgetId: string;
+    public readonly accountId: string;
+
+    public constructor({ budgetId, accountId }: { budgetId: string, accountId: string }) {
+        super();
+        this.budgetId = budgetId;
+        this.accountId = accountId;
+    }
+}

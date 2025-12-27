@@ -5,7 +5,7 @@ import { Theme, useTheme } from "@/app/themes";
 import { convertPeriod } from "@/core/helpers";
 import { Category } from "@/core/models";
 import { Period, PeriodType } from "@/core/types";
-import FormDialog from "@/ui/components/dialogs/FormDIalog";
+import FormDialog from "@/ui/components/dialogs/FormDialog";
 import InformationDialog from "@/ui/components/dialogs/InformationDialog";
 import Dropdown from "@/ui/components/form/Dropdown";
 import LoadingIndicator from "@/ui/components/LoadingIndicator";
