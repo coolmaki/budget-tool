@@ -19,7 +19,7 @@ import Page from "@/ui/templates/Page";
 import { ArcElement, Chart, DoughnutController, type ChartConfiguration } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { CircleDollarSignIcon, EyeIcon, FrownIcon, HandCoinsIcon, InfoIcon, LucideIcon, PiggyBankIcon, ShapesIcon, XIcon } from "lucide-solid";
-import { createEffect, createMemo, createSignal, Match, onCleanup, Switch, type Component } from "solid-js";
+import { createEffect, createMemo, createSignal, Match, onCleanup, Show, Switch, type Component } from "solid-js";
 import { createStore } from "solid-js/store";
 
 type DataStore = {
@@ -130,6 +130,7 @@ function getChartConfig(data: {
 type DataViewType = "dollar" | "percentage";
 
 type ViewState = {
+    obscureIncome: boolean;
     showViewOptions: boolean;
     dataViewType: DataViewType;
 }
@@ -145,8 +146,9 @@ const Manage: Component = () => {
     const [showInfo, setShowInfo] = createSignal(false);
 
     const [view, setView] = createStore<ViewState>({
+        obscureIncome: true,
         showViewOptions: false,
-        dataViewType: "dollar",
+        dataViewType: "percentage",
     });
 
     const [data, setData] = createStore<DataStore>({
@@ -299,6 +301,21 @@ const Manage: Component = () => {
                                 title={t("ManagePage.View")!}
                                 oncancel={() => setView("showViewOptions", false)}>
 
+                                {/* Obscure Income */}
+                                <Dropdown
+                                    items={[true, false]}
+                                    title={t("ManagePage.ShowHideIncome")!}
+                                    value={view.obscureIncome}
+                                    getName={(value) => value
+                                        ? t("ManagePage.Hide")!
+                                        : t("ManagePage.Show")!}
+                                    areEqual={(a, b) => a === b}
+                                    onselected={(value) => {
+                                        setView("obscureIncome", value);
+                                        updateChartConfig();
+                                    }} />
+
+                                {/* View Type */}
                                 <Dropdown
                                     items={["dollar", "percentage"] as DataViewType[]}
                                     title={t("ManagePage.ViewChartBy")!}
@@ -310,35 +327,46 @@ const Manage: Component = () => {
                                         updateChartConfig();
                                     }} />
 
-                                <span class="text-xl text-surface-content text-center">{t("ManagePage.ShowAmountsFor")}:</span>
+                                {/* Period */}
+                                <Show when={view.dataViewType === "dollar"}>
+                                    <span class="text-xl text-surface-content text-center">{t("ManagePage.ShowAmountsFor")}:</span>
 
-                                <PeriodPicker
-                                    value={context.period}
-                                    onamountchanged={(amount) => {
-                                        setContext("period", { amount, type: context.period.type });
-                                        updateChartConfig();
-                                    }}
-                                    ontypechanged={(type) => {
-                                        setContext("period", { amount: context.period.amount, type });
-                                        updateChartConfig();
-                                    }} />
+                                    <PeriodPicker
+                                        value={context.period}
+                                        onamountchanged={(amount) => {
+                                            setContext("period", { amount, type: context.period.type });
+                                            updateChartConfig();
+                                        }}
+                                        ontypechanged={(type) => {
+                                            setContext("period", { amount: context.period.amount, type });
+                                            updateChartConfig();
+                                        }} />
+                                </Show>
                             </FormDialog>
                         </span>
 
                         <hr class="text-border" />
 
                         <div class="flex-1 flex flex-col justify-center items-center p-sm">
-                            <Switch fallback={(
-                                <div class="bg-surface-200 text-surface-content rounded-surface h-24 items-center flex flex-row gap-sm justify-center w-full">
-                                    <p class="text-center text-xl">{t("ManagePage.YouHaveNoIncome")}</p>
-                                    <FrownIcon />
-                                </div>
-                            )}>
-                                <Match when={data.totalIncome > 0}>
-                                    <canvas ref={chartRef}></canvas>
-                                    <span class="absolute top-1/2 left-1/2 text-2xl text-black bg-white py-xs px-sm rounded-sm -translate-x-1/2">{t("Core.CurrencyFormat", totalIncome())}</span>
-                                </Match>
-                            </Switch>
+                            <Show
+                                when={data.totalIncome > 0}
+                                fallback={(
+                                    <div class="bg-surface-200 text-surface-content rounded-surface h-24 items-center flex flex-row gap-sm justify-center w-full">
+                                        <p class="text-center text-xl">{t("ManagePage.YouHaveNoIncome")}</p>
+                                        <FrownIcon />
+                                    </div>
+                                )}>
+
+                                {/* Chart */}
+                                <canvas ref={chartRef}></canvas>
+
+                                {/* Total Income */}
+                                <Show when={!view.obscureIncome}>
+                                    <span class="absolute top-1/2 left-1/2 text-2xl text-black bg-white py-xs px-sm rounded-sm -translate-x-1/2">
+                                        {t("Core.CurrencyFormat", totalIncome())}
+                                    </span>
+                                </Show>
+                            </Show>
                         </div>
 
                         <hr class="text-border" />

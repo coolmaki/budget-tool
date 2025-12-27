@@ -96,6 +96,9 @@ const dict = {
             "Use the 'View' button to adjust how you want to view your data.\n\n" +
             "Use the buttons in the bar at the bottom of this page to manage various areas of your budget.",
         View: "View",
+        ShowHideIncome: "Show/Hide Income",
+        Show: "Show",
+        Hide: "Hide",
         ViewChartBy: "View chart by:",
         DataViewType: (type: string) => {
             switch (type) {
